@@ -1,0 +1,40 @@
+use std::env;
+
+/// Typed application configuration loaded from environment variables.
+///
+/// Required variables (`DATABASE_URL`, `JWT_SECRET`) cause a panic at startup
+/// with a clear message if missing — fail-fast is intentional here.
+#[derive(Clone, Debug)]
+pub struct Config {
+    pub database_url: String,
+    pub database_max_connections: u32,
+    pub server_host: String,
+    pub server_port: u16,
+    pub log_level: String,
+}
+
+impl Config {
+    pub fn from_env() -> Self {
+        Self {
+            database_url: required("DATABASE_URL"),
+            database_max_connections: optional("DATABASE_MAX_CONNECTIONS", 20),
+            server_host: optional("SERVER_HOST", "0.0.0.0".to_string()),
+            server_port: optional("SERVER_PORT", 8080),
+            log_level: optional("LOG_LEVEL", "info".to_string()),
+        }
+    }
+}
+
+fn required(key: &str) -> String {
+    env::var(key).unwrap_or_else(|_| panic!("missing required environment variable: {key}"))
+}
+
+fn optional<T>(key: &str, default: T) -> T
+where
+    T: std::str::FromStr,
+{
+    env::var(key)
+        .ok()
+        .and_then(|v| v.parse().ok())
+        .unwrap_or(default)
+}
