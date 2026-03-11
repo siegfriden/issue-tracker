@@ -1,0 +1,17 @@
+# Logs
+*.log
+
+# dotenv environment variable files
+.env
+.env.*
+!.env.example
+
+# IDE
+.vscode/*
+!.vscode/extensions.json
+.idea/
+.claude/
+*.sw?
+
+# macOS
+.DS_Store
