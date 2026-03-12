@@ -39,7 +39,7 @@ async fn main() {
     subscriber_builder.init();
 
     #[cfg(not(debug_assertions))]
-    subscriber_builder.json().init();
+    subscriber_builder.json().with_span_list(false).init();
 
     // Build PostgreSQL connection pool, panics on connection failure
     tracing::info!("connecting to database...");

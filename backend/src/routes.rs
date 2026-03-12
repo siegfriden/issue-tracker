@@ -1,7 +1,12 @@
+use std::time::Duration;
+
 use axum::{
     Router,
+    http::{Request, Response},
     routing::{delete, get, post},
 };
+use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tracing::Span;
 
 use crate::{
     AppState,
@@ -12,7 +17,29 @@ use crate::{
 
 /// Build the full application router with all routes and middleware.
 pub fn build(state: AppState) -> Router {
-    Router::new().nest("/api", api_routes()).with_state(state)
+    Router::new()
+        .nest("/api", api_routes())
+        .with_state(state)
+        .layer(CorsLayer::permissive())
+        .layer(
+            TraceLayer::new_for_http()
+                .make_span_with(|req: &Request<_>| {
+                    tracing::info_span!(
+                        "http_request",
+                        request_id = %uuid::Uuid::new_v4(),
+                        method = %req.method(),
+                        uri = %req.uri().path(), // omit query string if it has sensitive params
+                    )
+                })
+                .on_request(()) // disable default request event
+                .on_response(|res: &Response<_>, latency: Duration, _span: &Span| {
+                    tracing::info!(
+                        status = res.status().as_u16(),
+                        latency_ms = latency.as_millis(),
+                    )
+                })
+                .on_failure(()),
+        )
 }
 
 fn api_routes() -> Router<AppState> {
