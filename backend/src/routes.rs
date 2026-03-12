@@ -17,12 +17,18 @@ pub fn build(state: AppState) -> Router {
 
 fn api_routes() -> Router<AppState> {
     Router::new()
-        .route("/health", get(health_handler::get_health))
+        .nest("/health", health_routes())
         .nest("/auth", auth_routes())
         .nest("/users", user_routes())
         .nest("/projects", project_routes())
         .nest("/issues", issue_routes())
         .nest("/comments", comment_routes())
+}
+
+fn health_routes() -> Router<AppState> {
+    Router::new()
+        .route("/live", get(health_handler::get_liveness))
+        .route("/ready", get(health_handler::get_readiness))
 }
 
 fn auth_routes() -> Router<AppState> {
