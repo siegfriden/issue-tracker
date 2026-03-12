@@ -53,18 +53,21 @@ async fn main() {
     sqlx::migrate!("./migrations")
         .run(&db)
         .await
-        .expect("failed to run database migrations");
+        .unwrap_or_else(|e| panic!("failed to run database migrations: {e}"));
 
-    let addr: SocketAddr = format!("{}:{}", config.server_host, config.server_port)
+    let addr_str: String = format!("{}:{}", config.server_host, config.server_port);
+    let addr: SocketAddr = addr_str
         .parse()
-        .expect("invalid server address");
+        .unwrap_or_else(|_| panic!("invalid server address: {addr_str}"));
 
     let router = routes::build(AppState { db, config });
 
     tracing::info!("listening on {addr}");
     let listener = tokio::net::TcpListener::bind(addr)
         .await
-        .expect("failed to bind to address");
+        .unwrap_or_else(|e| panic!("failed to bind to address: {e}"));
 
-    axum::serve(listener, router).await.expect("server error");
+    axum::serve(listener, router)
+        .await
+        .unwrap_or_else(|e| panic!("server error: {e}"));
 }

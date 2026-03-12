@@ -5,44 +5,36 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
-use thiserror::Error;
 use validator::ValidationErrors;
 
 /// Application-wide error type. Every handler returns `Result<_, AppError>`.
 ///
 /// Implements `IntoResponse` so Axum can convert it directly into an HTTP
 /// response — no error-mapping boilerplate needed in handlers.
-#[derive(Debug, Error)]
+#[derive(Debug)]
 pub enum AppError {
     /// 400 — malformed request that doesn't fit the validation framework.
-    #[error("{0}")]
     BadRequest(String),
 
     /// 400 — field-level validation failures from the `validator` crate.
     /// The inner map is `{ field: [messages] }` and is included in the
     /// response body under the `data` key.
-    #[error("validation failed")]
     Validation(HashMap<String, Vec<String>>),
 
     /// 401 — missing, expired, or invalid credentials.
-    #[error("unauthorized")]
     Unauthorized,
 
     /// 403 — authenticated but not allowed to perform this action.
-    #[error("forbidden")]
     Forbidden,
 
     /// 404 — resource does not exist (also used when existence must not be revealed).
-    #[error("resource not found")]
-    NotFound,
+    NotFound(String),
 
     /// 409 — uniqueness constraint violation (e.g. duplicate email).
-    #[error("{0}")]
     Conflict(String),
 
     /// 500 — unexpected server-side failure. The message is logged but never
     /// sent to the client.
-    #[error("internal server error")]
     Internal(String),
 }
 
@@ -56,23 +48,36 @@ pub enum AppError {
 /// message to avoid leaking implementation details.
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
-        let message = self.to_string();
-        let (status, data) = match &self {
-            AppError::BadRequest(_) => (StatusCode::BAD_REQUEST, None),
-            AppError::Validation(fields) => {
-                (StatusCode::BAD_REQUEST, Some(serde_json::json!(fields)))
-            }
-            AppError::Unauthorized => (StatusCode::UNAUTHORIZED, None),
-            AppError::Forbidden => (StatusCode::FORBIDDEN, None),
-            AppError::NotFound => (StatusCode::NOT_FOUND, None),
-            AppError::Conflict(_) => (StatusCode::CONFLICT, None),
+        let (status, message, data) = match self {
+            AppError::BadRequest(detail) => (
+                StatusCode::BAD_REQUEST,
+                "Invalid request parameters.".to_string(),
+                Some(serde_json::json!(detail)),
+            ),
+            AppError::Validation(fields) => (
+                StatusCode::BAD_REQUEST,
+                "Missing or invalid fields. Please check your input and try again.".to_string(),
+                Some(serde_json::json!(fields)),
+            ),
+            AppError::Unauthorized => (
+                StatusCode::UNAUTHORIZED,
+                "Invalid credentials. Please log in again.".to_string(),
+                None,
+            ),
+            AppError::Forbidden => (StatusCode::FORBIDDEN, "Access denied.".to_string(), None),
+            AppError::NotFound(msg) => (StatusCode::NOT_FOUND, msg, None),
+            AppError::Conflict(msg) => (StatusCode::CONFLICT, msg, None),
             AppError::Internal(msg) => {
                 tracing::error!(error = %msg, "internal server error");
-                (StatusCode::INTERNAL_SERVER_ERROR, None)
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    "An unexpected error occurred. Please try again later.".to_string(),
+                    None,
+                )
             }
         };
 
-        let body = serde_json::json!({ "error": message, "data": data });
+        let body = serde_json::json!({ "message": message, "data": data });
         (status, Json(body)).into_response()
     }
 }
@@ -108,12 +113,12 @@ impl From<ValidationErrors> for AppError {
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         match err {
-            sqlx::Error::RowNotFound => AppError::NotFound,
+            sqlx::Error::RowNotFound => AppError::NotFound("Resource not found.".to_string()),
             sqlx::Error::Database(db_err) => {
                 // PostgreSQL unique violation
                 if db_err.code().as_deref() == Some("23505") {
                     return AppError::Conflict(
-                        "a record with that value already exists".to_string(),
+                        "A record with that value already exists.".to_string(),
                     );
                 }
                 AppError::Internal(db_err.to_string())

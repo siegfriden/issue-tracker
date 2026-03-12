@@ -19,7 +19,7 @@ pub async fn get_me(
 ) -> Result<Json<UserResponse>, AppError> {
     let user = user_repository::find_by_id(&state.db, auth.user_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("User not found.".to_string()))?;
 
     Ok(Json(user.into()))
 }

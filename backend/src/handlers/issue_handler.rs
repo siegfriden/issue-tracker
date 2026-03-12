@@ -26,7 +26,7 @@ pub async fn list_issues(
 ) -> Result<Json<PaginatedResponse<Issue>>, AppError> {
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -51,7 +51,7 @@ pub async fn create_issue(
 
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -74,11 +74,11 @@ pub async fn get_issue(
 ) -> Result<Json<Issue>, AppError> {
     let issue = issue_repository::find_by_id(&state.db, issue_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Issue not found.".to_string()))?;
 
     let project = project_repository::find_by_id(&state.db, issue.project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -100,11 +100,11 @@ pub async fn update_issue(
 
     let issue = issue_repository::find_by_id(&state.db, issue_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Issue not found.".to_string()))?;
 
     let project = project_repository::find_by_id(&state.db, issue.project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -129,7 +129,7 @@ pub async fn delete_issue(
 ) -> Result<StatusCode, AppError> {
     let issue = issue_repository::find_by_id(&state.db, issue_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Issue not found.".to_string()))?;
 
     if issue.author_id != auth.user_id {
         return Err(AppError::Forbidden);

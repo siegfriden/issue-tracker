@@ -40,23 +40,27 @@ impl From<User> for UserResponse {
 /// Request body for `POST /api/auth/register`.
 #[derive(Debug, Deserialize, Validate)]
 pub struct RegisterRequest {
-    #[validate(email(message = "must be a valid email address"))]
+    #[validate(email(message = "Please enter a valid email address."))]
     pub email: String,
 
-    #[validate(length(min = 8, message = "must be at least 8 characters"))]
+    #[validate(length(min = 8, message = "Password must be at least 8 characters long."))]
     pub password: String,
 
-    #[validate(length(min = 1, max = 100, message = "must be between 1 and 100 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 100,
+        message = "Display name must be between 1 and 100 characters."
+    ))]
     pub display_name: String,
 }
 
 /// Request body for `POST /api/auth/login`.
 #[derive(Debug, Deserialize, Validate)]
 pub struct LoginRequest {
-    #[validate(email(message = "must be a valid email address"))]
+    #[validate(email(message = "Please enter a valid email address."))]
     pub email: String,
 
-    #[validate(length(min = 1, message = "password is required"))]
+    #[validate(length(min = 1, message = "Password is required."))]
     pub password: String,
 }
 
@@ -78,9 +82,13 @@ pub struct TokenResponse {
 /// All fields are optional — only provided fields are updated.
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateUserRequest {
-    #[validate(length(min = 1, max = 100, message = "must be between 1 and 100 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 100,
+        message = "Display name must be between 1 and 100 characters."
+    ))]
     pub display_name: Option<String>,
 
-    #[validate(length(min = 8, message = "must be at least 8 characters"))]
+    #[validate(length(min = 8, message = "New password must be at least 8 characters long."))]
     pub new_password: Option<String>,
 }

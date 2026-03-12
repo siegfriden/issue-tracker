@@ -23,11 +23,11 @@ pub async fn list_comments(
 ) -> Result<Json<PaginatedResponse<Comment>>, AppError> {
     let issue = issue_repository::find_by_id(&state.db, issue_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Issue not found.".to_string()))?;
 
     let project = project_repository::find_by_id(&state.db, issue.project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -51,11 +51,11 @@ pub async fn create_comment(
 
     let issue = issue_repository::find_by_id(&state.db, issue_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Issue not found.".to_string()))?;
 
     let project = project_repository::find_by_id(&state.db, issue.project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -81,7 +81,7 @@ pub async fn delete_comment(
 ) -> Result<StatusCode, AppError> {
     let comment = comment_repository::find_by_id(&state.db, comment_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Comment not found.".to_string()))?;
 
     if comment.author_id != auth.user_id {
         return Err(AppError::Forbidden);

@@ -49,7 +49,7 @@ pub async fn get_project(
 ) -> Result<Json<Project>, AppError> {
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -74,7 +74,7 @@ pub async fn update_project(
 
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
@@ -97,7 +97,7 @@ pub async fn delete_project(
 ) -> Result<StatusCode, AppError> {
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     if project.owner_id != auth.user_id {
         return Err(AppError::Forbidden);
@@ -119,7 +119,7 @@ pub async fn list_members(
 ) -> Result<Json<PaginatedResponse<ProjectMember>>, AppError> {
     let project = project_repository::find_by_id(&state.db, project_id)
         .await?
-        .ok_or(AppError::NotFound)?;
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
     let member_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;

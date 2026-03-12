@@ -19,7 +19,7 @@ pub struct CreateCommentRequest {
     #[validate(length(
         min = 1,
         max = 10000,
-        message = "must be between 1 and 10000 characters"
+        message = "Comment must be between 1 and 10,000 characters."
     ))]
     pub body: String,
 }

@@ -18,19 +18,30 @@ pub struct Project {
 /// Request body for `POST /api/projects`.
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateProjectRequest {
-    #[validate(length(min = 1, max = 200, message = "must be between 1 and 200 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Project name must be between 1 and 200 characters."
+    ))]
     pub name: String,
 
     /// URL-safe slug that uniquely identifies the project (e.g., "my-project").
     /// Allowed characters: lowercase letters, digits, and hyphens.
     /// Must start and end with a letter or digit.
     #[validate(
-        length(min = 1, max = 100, message = "must be between 1 and 100 characters"),
+        length(
+            min = 1,
+            max = 100,
+            message = "Identifier must be between 1 and 100 characters."
+        ),
         custom(function = "validate_identifier")
     )]
     pub identifier: String,
 
-    #[validate(length(max = 10000, message = "must be at most 10000 characters"))]
+    #[validate(length(
+        max = 10000,
+        message = "Description must be at most 10,000 characters."
+    ))]
     #[serde(default)]
     pub description: String,
 
@@ -43,10 +54,17 @@ pub struct CreateProjectRequest {
 /// All fields optional. Omitted fields are left unchanged.
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateProjectRequest {
-    #[validate(length(min = 1, max = 200, message = "must be between 1 and 200 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 200,
+        message = "Project name must be between 1 and 200 characters."
+    ))]
     pub name: Option<String>,
 
-    #[validate(length(max = 10000, message = "must be at most 10000 characters"))]
+    #[validate(length(
+        max = 10000,
+        message = "Description must be at most 10,000 characters."
+    ))]
     pub description: Option<String>,
 
     pub is_public: Option<bool>,
@@ -65,8 +83,8 @@ fn validate_identifier(value: &str) -> Result<(), validator::ValidationError> {
     } else {
         let mut err = validator::ValidationError::new("invalid_identifier");
         err.message = Some(
-            "must contain only lowercase letters, digits, and hyphens; \
-             must start and end with a letter or digit"
+            "Identifier may only contain lowercase letters, digits, and hyphens, \
+             and must start and end with a letter or digit."
                 .into(),
         );
         Err(err)

@@ -30,10 +30,17 @@ pub struct IssueFilters {
 /// Request body for `POST /api/projects/:project_id/issues`.
 #[derive(Debug, Deserialize, Validate)]
 pub struct CreateIssueRequest {
-    #[validate(length(min = 1, max = 300, message = "must be between 1 and 300 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 300,
+        message = "Subject must be between 1 and 300 characters."
+    ))]
     pub subject: String,
 
-    #[validate(length(max = 10000, message = "must be at most 10000 characters"))]
+    #[validate(length(
+        max = 10000,
+        message = "Description must be at most 10,000 characters."
+    ))]
     #[serde(default)]
     pub description: String,
 
@@ -59,10 +66,17 @@ pub struct CreateIssueRequest {
 /// All fields are optional — only provided fields are updated.
 #[derive(Debug, Deserialize, Validate)]
 pub struct UpdateIssueRequest {
-    #[validate(length(min = 1, max = 300, message = "must be between 1 and 300 characters"))]
+    #[validate(length(
+        min = 1,
+        max = 300,
+        message = "Subject must be between 1 and 300 characters."
+    ))]
     pub subject: Option<String>,
 
-    #[validate(length(max = 10000, message = "must be at most 10000 characters"))]
+    #[validate(length(
+        max = 10000,
+        message = "Description must be at most 10,000 characters."
+    ))]
     pub description: Option<String>,
 
     #[serde(default, deserialize_with = "super::nullable::deserialize")]
@@ -86,7 +100,7 @@ fn validate_issue_type(value: &str) -> Result<(), ValidationError> {
         "bug" | "feature" | "task" | "support" => Ok(()),
         _ => {
             let mut err = ValidationError::new("invalid_issue_type");
-            err.message = Some("must be one of: bug, feature, task, support".into());
+            err.message = Some("Issue type must be one of: bug, feature, task, support.".into());
             Err(err)
         }
     }
@@ -97,8 +111,9 @@ fn validate_status(value: &str) -> Result<(), ValidationError> {
         "open" | "in_progress" | "resolved" | "closed" | "feedback" => Ok(()),
         _ => {
             let mut err = ValidationError::new("invalid_status");
-            err.message =
-                Some("must be one of: open, in_progress, resolved, closed, feedback".into());
+            err.message = Some(
+                "Status must be one of: open, in_progress, resolved, closed, feedback.".into(),
+            );
             Err(err)
         }
     }
@@ -109,7 +124,8 @@ fn validate_priority(value: &str) -> Result<(), ValidationError> {
         "low" | "normal" | "high" | "urgent" | "immediate" => Ok(()),
         _ => {
             let mut err = ValidationError::new("invalid_priority");
-            err.message = Some("must be one of: low, normal, high, urgent, immediate".into());
+            err.message =
+                Some("Priority must be one of: low, normal, high, urgent, immediate.".into());
             Err(err)
         }
     }
