@@ -17,6 +17,12 @@ pub async fn register(
 ) -> Result<(StatusCode, Json<TokenResponse>), AppError> {
     input.validate()?;
 
+    if user_repository::exists_by_email(&state.db, &input.email).await? {
+        return Err(AppError::Conflict(
+            "A user with that email already exists.".to_string(),
+        ));
+    }
+
     let password_hash = password::hash(&input.password)?;
     let user =
         user_repository::create(&state.db, &input.email, &password_hash, &input.display_name)

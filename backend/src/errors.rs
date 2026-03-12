@@ -108,21 +108,15 @@ impl From<ValidationErrors> for AppError {
 
 /// Converts `sqlx::Error` into the appropriate `AppError` variant:
 /// - `RowNotFound` → `NotFound`
-/// - PostgreSQL error code `23505` (unique violation) → `Conflict`
 /// - Everything else → `Internal`
+///
+/// Unique-violation (23505) conflicts are detected explicitly in handlers
+/// before INSERT or UPDATE, so unexpected 23505s surface as 500 Internal.
 impl From<sqlx::Error> for AppError {
     fn from(err: sqlx::Error) -> Self {
         match err {
             sqlx::Error::RowNotFound => AppError::NotFound("Resource not found.".to_string()),
-            sqlx::Error::Database(db_err) => {
-                // PostgreSQL unique violation
-                if db_err.code().as_deref() == Some("23505") {
-                    return AppError::Conflict(
-                        "A record with that value already exists.".to_string(),
-                    );
-                }
-                AppError::Internal(db_err.to_string())
-            }
+            sqlx::Error::Database(db_err) => AppError::Internal(db_err.to_string()),
             other => AppError::Internal(other.to_string()),
         }
     }

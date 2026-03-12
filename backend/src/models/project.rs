@@ -137,6 +137,13 @@ impl Project {
     }
 }
 
+/// Request body for `POST /api/projects/:project_id/members`.
+#[derive(Debug, Deserialize)]
+pub struct AddMemberRequest {
+    pub user_id: Uuid,
+    pub role: MemberRole,
+}
+
 fn default_true() -> bool {
     true
 }

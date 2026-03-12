@@ -9,9 +9,12 @@ use crate::{
     extractors::{Json, Path, Query},
     models::{
         PaginatedResponse, PaginationParams,
-        project::{CreateProjectRequest, MemberRole, Project, ProjectMember, UpdateProjectRequest},
+        project::{
+            AddMemberRequest, CreateProjectRequest, MemberRole, Project, ProjectMember,
+            UpdateProjectRequest,
+        },
     },
-    repositories::project_repository,
+    repositories::{project_repository, user_repository},
 };
 
 /// `GET /api/projects`
@@ -35,6 +38,12 @@ pub async fn create_project(
     Json(input): Json<CreateProjectRequest>,
 ) -> Result<(StatusCode, Json<Project>), AppError> {
     input.validate()?;
+
+    if project_repository::exists_by_identifier(&state.db, &input.identifier).await? {
+        return Err(AppError::Conflict(
+            "A project with that identifier already exists.".to_string(),
+        ));
+    }
 
     let project = project_repository::create(&state.db, &input, auth.user_id).await?;
     project_repository::add_member(&state.db, project.id, auth.user_id, MemberRole::Admin).await?;
@@ -131,4 +140,41 @@ pub async fn list_members(
     let (members, total) =
         project_repository::find_members(&state.db, project.id, &pagination).await?;
     Ok(Json(PaginatedResponse::new(members, total, &pagination)))
+}
+
+/// `POST /api/projects/:project_id/members`
+///
+/// Adds a user to a project with the given role. Requires admin access.
+pub async fn add_member(
+    State(state): State<AppState>,
+    auth: Auth,
+    Path(project_id): Path<Uuid>,
+    Json(input): Json<AddMemberRequest>,
+) -> Result<StatusCode, AppError> {
+    let project = project_repository::find_by_id(&state.db, project_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
+
+    let member_role =
+        project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
+
+    if !project.can_admin(auth.user_id, member_role) {
+        return Err(AppError::Forbidden);
+    }
+
+    if user_repository::find_by_id(&state.db, input.user_id)
+        .await?
+        .is_none()
+    {
+        return Err(AppError::NotFound("User not found.".to_string()));
+    }
+
+    if project_repository::exists_member(&state.db, project_id, input.user_id).await? {
+        return Err(AppError::Conflict(
+            "User is already a member of this project.".to_string(),
+        ));
+    }
+
+    project_repository::add_member(&state.db, project_id, input.user_id, input.role).await?;
+    Ok(StatusCode::NO_CONTENT)
 }

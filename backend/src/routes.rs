@@ -84,7 +84,10 @@ fn project_routes() -> Router<AppState> {
                 .patch(project_handler::update_project)
                 .delete(project_handler::delete_project),
         )
-        .route("/{project_id}/members", get(project_handler::list_members))
+        .route(
+            "/{project_id}/members",
+            get(project_handler::list_members).post(project_handler::add_member),
+        )
         .route(
             "/{project_id}/issues",
             get(issue_handler::list_issues).post(issue_handler::create_issue),

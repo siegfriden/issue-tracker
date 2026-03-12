@@ -25,11 +25,16 @@ pub async fn find_by_email(pool: &PgPool, email: &str) -> Result<Option<User>, s
     .await
 }
 
+pub async fn exists_by_email(pool: &PgPool, email: &str) -> Result<bool, sqlx::Error> {
+    let exists = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
+        .fetch_one(pool)
+        .await?;
+    Ok(exists.unwrap_or(false))
+}
+
 /// Insert a new user row and return the created record.
 ///
 /// The caller is responsible for hashing the password before passing it here.
-/// Duplicate email will surface as `AppError::Conflict` via the `From<sqlx::Error>`
-/// implementation (PostgreSQL error code 23505).
 pub async fn create(
     pool: &PgPool,
     email: &str,
