@@ -1,8 +1,4 @@
-use axum::{
-    Json,
-    extract::{Path, Query, State},
-    http::StatusCode,
-};
+use axum::{extract::State, http::StatusCode};
 use uuid::Uuid;
 use validator::Validate;
 
@@ -10,6 +6,7 @@ use crate::{
     AppState,
     auth::middleware::Auth,
     errors::AppError,
+    extractors::{Json, Path, Query},
     models::{
         PaginatedResponse, PaginationParams,
         issue::{CreateIssueRequest, Issue, IssueFilters, UpdateIssueRequest},

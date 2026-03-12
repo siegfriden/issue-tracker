@@ -1,10 +1,11 @@
-use axum::{Json, extract::State};
+use axum::extract::State;
 use validator::Validate;
 
 use crate::{
     AppState,
     auth::{middleware::Auth, password},
     errors::AppError,
+    extractors::Json,
     models::user::{UpdateUserRequest, UserResponse},
     repositories::user_repository,
 };
