@@ -8,6 +8,9 @@ use std::env;
 pub struct Config {
     pub database_url: String,
     pub database_max_connections: u32,
+    pub jwt_secret: String,
+    pub jwt_access_expiry_secs: i64,
+    pub jwt_refresh_expiry_secs: i64,
     pub server_host: String,
     pub server_port: u16,
     pub log_level: String,
@@ -18,6 +21,9 @@ impl Config {
         Self {
             database_url: required("DATABASE_URL"),
             database_max_connections: optional("DATABASE_MAX_CONNECTIONS", 20),
+            jwt_secret: required("JWT_SECRET"),
+            jwt_access_expiry_secs: optional("JWT_ACCESS_EXPIRY_SECS", 300),
+            jwt_refresh_expiry_secs: optional("JWT_REFRESH_EXPIRY_SECS", 604_800), // 7 days
             server_host: optional("SERVER_HOST", "0.0.0.0".to_string()),
             server_port: optional("SERVER_PORT", 8080),
             log_level: optional("LOG_LEVEL", "info".to_string()),

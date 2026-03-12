@@ -1,5 +1,9 @@
+mod auth;
 mod config;
+mod errors;
 mod handlers;
+mod models;
+mod repositories;
 mod routes;
 
 use std::net::SocketAddr;
@@ -15,6 +19,7 @@ use tracing_subscriber::EnvFilter;
 #[derive(Clone)]
 struct AppState {
     db: PgPool,
+    config: Config,
 }
 
 #[tokio::main]
@@ -53,7 +58,7 @@ async fn main() {
         .parse()
         .expect("invalid server address");
 
-    let router = routes::build(AppState { db });
+    let router = routes::build(AppState { db, config });
 
     tracing::info!("listening on {addr}");
     let listener = tokio::net::TcpListener::bind(addr)
