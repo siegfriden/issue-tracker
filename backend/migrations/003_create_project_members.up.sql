@@ -1,7 +1,7 @@
 CREATE TABLE project_members (
     project_id UUID        NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
     user_id    UUID        NOT NULL REFERENCES users(id)    ON DELETE CASCADE,
-    role       VARCHAR(20) NOT NULL DEFAULT 'viewer'
+    role       TEXT        NOT NULL DEFAULT 'viewer'
                    CHECK (role IN ('admin', 'member', 'viewer')),
     joined_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     PRIMARY KEY (project_id, user_id)

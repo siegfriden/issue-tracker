@@ -24,6 +24,8 @@ pub fn build(state: AppState) -> Router {
         .allow_origin(AllowOrigin::predicate(|origin: &HeaderValue, _| {
             origin.as_bytes().starts_with(b"http://localhost:")
                 || origin.as_bytes() == b"http://localhost"
+                || origin.as_bytes().starts_with(b"http://127.0.0.1:")
+                || origin.as_bytes() == b"http://127.0.0.1"
         }))
         .allow_methods(tower_http::cors::Any)
         .allow_headers(tower_http::cors::Any);
