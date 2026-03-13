@@ -2,10 +2,13 @@ use std::time::Duration;
 
 use axum::{
     Router,
-    http::{Request, Response},
+    http::{HeaderValue, Request, Response},
     routing::{delete, get, post},
 };
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{
+    cors::{AllowOrigin, CorsLayer},
+    trace::TraceLayer,
+};
 use tracing::Span;
 
 use crate::{
@@ -17,29 +20,37 @@ use crate::{
 
 /// Build the full application router with all routes and middleware.
 pub fn build(state: AppState) -> Router {
+    let cors = CorsLayer::new()
+        .allow_origin(AllowOrigin::predicate(|origin: &HeaderValue, _| {
+            origin.as_bytes().starts_with(b"http://localhost:")
+                || origin.as_bytes() == b"http://localhost"
+        }))
+        .allow_methods(tower_http::cors::Any)
+        .allow_headers(tower_http::cors::Any);
+
+    let trace = TraceLayer::new_for_http()
+        .make_span_with(|req: &Request<_>| {
+            tracing::info_span!(
+                "http_request",
+                request_id = %uuid::Uuid::new_v4(),
+                method = %req.method(),
+                uri = %req.uri().path(), // omit query string if it has sensitive params
+            )
+        })
+        .on_failure(()) // disable failure event logs
+        .on_request(()) // disable default request event logs
+        .on_response(|res: &Response<_>, latency: Duration, _span: &Span| {
+            tracing::info!(
+                status = res.status().as_u16(),
+                latency_ms = latency.as_millis(),
+            )
+        });
+
     Router::new()
         .nest("/api", api_routes())
         .with_state(state)
-        .layer(CorsLayer::permissive())
-        .layer(
-            TraceLayer::new_for_http()
-                .make_span_with(|req: &Request<_>| {
-                    tracing::info_span!(
-                        "http_request",
-                        request_id = %uuid::Uuid::new_v4(),
-                        method = %req.method(),
-                        uri = %req.uri().path(), // omit query string if it has sensitive params
-                    )
-                })
-                .on_request(()) // disable default request event
-                .on_response(|res: &Response<_>, latency: Duration, _span: &Span| {
-                    tracing::info!(
-                        status = res.status().as_u16(),
-                        latency_ms = latency.as_millis(),
-                    )
-                })
-                .on_failure(()),
-        )
+        .layer(cors)
+        .layer(trace)
 }
 
 fn api_routes() -> Router<AppState> {
