@@ -5,7 +5,19 @@ use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
 };
+use serde::Serialize;
+use utoipa::ToSchema;
 use validator::ValidationErrors;
+
+/// Standard error response shape shared by OpenAPI docs (`ToSchema`) and runtime
+/// serialization in `AppError::into_response`, keeping both in sync.
+#[derive(Serialize, ToSchema)]
+pub struct ErrorResponse {
+    /// Human-readable error message.
+    pub message: String,
+    /// Additional error details (validation field errors, etc.) or null.
+    pub data: Option<serde_json::Value>,
+}
 
 /// Application-wide error type. Every handler returns `Result<_, AppError>`.
 ///
@@ -77,7 +89,7 @@ impl IntoResponse for AppError {
             }
         };
 
-        let body = serde_json::json!({ "message": message, "data": data });
+        let body = serde_json::json!(ErrorResponse { message, data });
         (status, Json(body)).into_response()
     }
 }

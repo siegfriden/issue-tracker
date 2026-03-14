@@ -15,6 +15,24 @@ use crate::{
 };
 
 /// `GET /api/issues/:issue_id/comments`
+#[utoipa::path(
+    get,
+    path = "/api/issues/{issue_id}/comments",
+    tag = "Comments",
+    summary = "List comments",
+    description = "Lists comments for an issue. Requires visibility access to the parent project.",
+    params(
+        ("issue_id" = Uuid, Path, description = "Issue ID"),
+        PaginationParams,
+    ),
+    responses(
+        (status = 200, description = "Paginated list of comments", body = crate::models::paginated_schemas::PaginatedCommentResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Issue not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn list_comments(
     State(state): State<AppState>,
     auth: Auth,
@@ -41,6 +59,23 @@ pub async fn list_comments(
 }
 
 /// `POST /api/issues/:issue_id/comments`
+#[utoipa::path(
+    post,
+    path = "/api/issues/{issue_id}/comments",
+    tag = "Comments",
+    summary = "Create comment",
+    description = "Creates a new comment on an issue. Requires membership in the parent project.",
+    params(("issue_id" = Uuid, Path, description = "Issue ID")),
+    request_body = CreateCommentRequest,
+    responses(
+        (status = 201, description = "Comment created", body = Comment),
+        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Issue not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn create_comment(
     State(state): State<AppState>,
     auth: Auth,
@@ -74,6 +109,21 @@ pub async fn create_comment(
 /// `DELETE /api/comments/:comment_id`
 ///
 /// Only the comment's author can delete a comment.
+#[utoipa::path(
+    delete,
+    path = "/api/comments/{comment_id}",
+    tag = "Comments",
+    summary = "Delete comment",
+    description = "Deletes a comment. Only the comment author can perform this action.",
+    params(("comment_id" = Uuid, Path, description = "Comment ID")),
+    responses(
+        (status = 204, description = "Comment deleted"),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied (not author)", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Comment not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn delete_comment(
     State(state): State<AppState>,
     auth: Auth,

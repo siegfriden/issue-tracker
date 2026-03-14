@@ -1,0 +1,1361 @@
+openapi: 3.1.0
+info:
+  title: Issue Tracker API
+  description: REST API for a Redmine-like issue tracker. Supports projects, issues, comments, and role-based access control.
+  license:
+    name: ''
+  version: 0.1.0
+paths:
+  /api/auth/login:
+    post:
+      tags:
+      - Auth
+      summary: Log in
+      description: Authenticates with email and password, returns an access/refresh token pair.
+      operationId: login
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+        required: true
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Invalid credentials
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/refresh:
+    post:
+      tags:
+      - Auth
+      summary: Refresh tokens
+      description: Validates a refresh token and issues a new access/refresh token pair.
+      operationId: refresh
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+        required: true
+      responses:
+        '200':
+          description: Tokens refreshed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          description: Invalid or expired refresh token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/auth/register:
+    post:
+      tags:
+      - Auth
+      summary: Register a new user
+      description: Creates a new user account and returns an access/refresh token pair.
+      operationId: register
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+        required: true
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Email already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+  /api/comments/{comment_id}:
+    delete:
+      tags:
+      - Comments
+      summary: Delete comment
+      description: Deletes a comment. Only the comment author can perform this action.
+      operationId: delete_comment
+      parameters:
+      - name: comment_id
+        in: path
+        description: Comment ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Comment deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied (not author)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Comment not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/health/live:
+    get:
+      tags:
+      - Health
+      summary: Liveness probe
+      description: Confirms the process is running. No external dependencies checked.
+      operationId: get_liveness
+      responses:
+        '200':
+          description: Service is alive
+  /api/health/ready:
+    get:
+      tags:
+      - Health
+      summary: Readiness probe
+      description: Confirms the service can handle requests by pinging the database.
+      operationId: get_readiness
+      responses:
+        '200':
+          description: Service is ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+        '503':
+          description: Service is not ready
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ReadinessResponse'
+  /api/issues/{issue_id}:
+    get:
+      tags:
+      - Issues
+      summary: Get issue
+      description: Returns a single issue by ID. Requires visibility access to the parent project.
+      operationId: get_issue
+      parameters:
+      - name: issue_id
+        in: path
+        description: Issue ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Issue details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Issue'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Issue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    delete:
+      tags:
+      - Issues
+      summary: Delete issue
+      description: Deletes an issue. Only the issue author can perform this action.
+      operationId: delete_issue
+      parameters:
+      - name: issue_id
+        in: path
+        description: Issue ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Issue deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied (not author)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Issue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    patch:
+      tags:
+      - Issues
+      summary: Update issue
+      description: Updates an issue's fields. Only supplied fields are changed. Requires write access.
+      operationId: update_issue
+      parameters:
+      - name: issue_id
+        in: path
+        description: Issue ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateIssueRequest'
+        required: true
+      responses:
+        '200':
+          description: Issue updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Issue'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Issue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/issues/{issue_id}/comments:
+    get:
+      tags:
+      - Comments
+      summary: List comments
+      description: Lists comments for an issue. Requires visibility access to the parent project.
+      operationId: list_comments
+      parameters:
+      - name: issue_id
+        in: path
+        description: Issue ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Paginated list of comments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedCommentResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Issue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    post:
+      tags:
+      - Comments
+      summary: Create comment
+      description: Creates a new comment on an issue. Requires membership in the parent project.
+      operationId: create_comment
+      parameters:
+      - name: issue_id
+        in: path
+        description: Issue ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCommentRequest'
+        required: true
+      responses:
+        '201':
+          description: Comment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Comment'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Issue not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/projects:
+    get:
+      tags:
+      - Projects
+      summary: List projects
+      description: Returns all projects visible to the authenticated user (public + owned/member).
+      operationId: list_projects
+      parameters:
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Paginated list of projects
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    post:
+      tags:
+      - Projects
+      summary: Create project
+      description: Creates a new project. The authenticated user becomes the owner.
+      operationId: create_project
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateProjectRequest'
+        required: true
+      responses:
+        '201':
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Identifier already taken
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/projects/{project_id}:
+    get:
+      tags:
+      - Projects
+      summary: Get project
+      description: Returns a single project by ID. Requires visibility access.
+      operationId: get_project
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '200':
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    delete:
+      tags:
+      - Projects
+      summary: Delete project
+      description: Deletes a project. Only the project owner can perform this action.
+      operationId: delete_project
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      responses:
+        '204':
+          description: Project deleted
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied (not owner)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    patch:
+      tags:
+      - Projects
+      summary: Update project
+      description: Updates a project's name, description, or visibility. Requires owner or admin role.
+      operationId: update_project
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProjectRequest'
+        required: true
+      responses:
+        '200':
+          description: Project updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Project'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/projects/{project_id}/issues:
+    get:
+      tags:
+      - Issues
+      summary: List issues
+      description: Lists issues for a project with optional status, priority, and assignee filters.
+      operationId: list_issues
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: status
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: priority
+        in: query
+        required: false
+        schema:
+          type: string
+      - name: assignee_id
+        in: query
+        required: false
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Paginated list of issues
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedIssueResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    post:
+      tags:
+      - Issues
+      summary: Create issue
+      description: Creates a new issue in a project. Requires write access (owner, admin, or member role).
+      operationId: create_issue
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateIssueRequest'
+        required: true
+      responses:
+        '201':
+          description: Issue created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Issue'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/projects/{project_id}/members:
+    get:
+      tags:
+      - Projects
+      summary: List project members
+      description: Returns the members of a project. Requires visibility access to the project.
+      operationId: list_members
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      - name: page
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      - name: limit
+        in: query
+        required: false
+        schema:
+          type: integer
+          format: int64
+      responses:
+        '200':
+          description: Paginated list of members
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/PaginatedProjectMemberResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    post:
+      tags:
+      - Projects
+      summary: Add project member
+      description: Adds a user to a project with the specified role. Requires owner or admin role.
+      operationId: add_member
+      parameters:
+      - name: project_id
+        in: path
+        description: Project ID
+        required: true
+        schema:
+          type: string
+          format: uuid
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AddMemberRequest'
+        required: true
+      responses:
+        '204':
+          description: Member added
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '403':
+          description: Access denied (not admin)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Project or user not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: User is already a member
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+  /api/users/me:
+    get:
+      tags:
+      - Users
+      summary: Get current user
+      description: Returns the authenticated user's profile.
+      operationId: get_me
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+    patch:
+      tags:
+      - Users
+      summary: Update current user
+      description: Updates the authenticated user's display name and/or password. Only supplied fields are changed.
+      operationId: update_me
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateUserRequest'
+        required: true
+      responses:
+        '200':
+          description: User updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        '400':
+          description: Validation error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '401':
+          description: Not authenticated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+      security:
+      - bearer: []
+components:
+  schemas:
+    AddMemberRequest:
+      type: object
+      description: Request body for `POST /api/projects/:project_id/members`.
+      required:
+      - user_id
+      - role
+      properties:
+        role:
+          $ref: '#/components/schemas/MemberRole'
+        user_id:
+          type: string
+          format: uuid
+    Comment:
+      type: object
+      required:
+      - id
+      - issue_id
+      - author_id
+      - body
+      - created_at
+      - updated_at
+      properties:
+        author_id:
+          type: string
+          format: uuid
+        body:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+        id:
+          type: string
+          format: uuid
+        issue_id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+    CreateCommentRequest:
+      type: object
+      description: Request body for `POST /api/issues/:issue_id/comments`.
+      required:
+      - body
+      properties:
+        body:
+          type: string
+    CreateIssueRequest:
+      type: object
+      description: Request body for `POST /api/projects/:project_id/issues`.
+      required:
+      - subject
+      properties:
+        assignee_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        description:
+          type: string
+          default: ''
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        issue_type:
+          type: string
+          default: task
+        priority:
+          type: string
+          default: normal
+        status:
+          type: string
+          default: open
+        subject:
+          type: string
+    CreateProjectRequest:
+      type: object
+      description: Request body for `POST /api/projects`.
+      required:
+      - name
+      - identifier
+      properties:
+        description:
+          type: string
+          default: ''
+        identifier:
+          type: string
+          description: |-
+            URL-safe slug that uniquely identifies the project (e.g., "my-project").
+            Allowed characters: lowercase letters, digits, and hyphens.
+            Must start and end with a letter or digit.
+        is_public:
+          type: boolean
+          default: true
+        name:
+          type: string
+    ErrorResponse:
+      type: object
+      description: |-
+        Schema-only type for documenting the standard error response shape in OpenAPI.
+        Not used at runtime — the actual JSON is built inline in `AppError::into_response`.
+      required:
+      - message
+      properties:
+        data:
+          description: Additional error details (validation field errors, etc.) or null.
+        message:
+          type: string
+          description: Human-readable error message.
+    Issue:
+      type: object
+      required:
+      - id
+      - project_id
+      - author_id
+      - subject
+      - description
+      - issue_type
+      - status
+      - priority
+      - created_at
+      - updated_at
+      properties:
+        assignee_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        author_id:
+          type: string
+          format: uuid
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type: string
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        id:
+          type: string
+          format: uuid
+        issue_type:
+          type: string
+        priority:
+          type: string
+        project_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+        subject:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    LoginRequest:
+      type: object
+      description: Request body for `POST /api/auth/login`.
+      required:
+      - email
+      - password
+      properties:
+        email:
+          type: string
+        password:
+          type: string
+    MemberRole:
+      type: string
+      enum:
+      - admin
+      - member
+      - viewer
+    PaginatedCommentResponse:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - limit
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Comment'
+        limit:
+          type: integer
+          format: int64
+        page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    PaginatedIssueResponse:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - limit
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Issue'
+        limit:
+          type: integer
+          format: int64
+        page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    PaginatedProjectMemberResponse:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - limit
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProjectMember'
+        limit:
+          type: integer
+          format: int64
+        page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    PaginatedProjectResponse:
+      type: object
+      required:
+      - data
+      - total
+      - page
+      - limit
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Project'
+        limit:
+          type: integer
+          format: int64
+        page:
+          type: integer
+          format: int64
+        total:
+          type: integer
+          format: int64
+    Project:
+      type: object
+      required:
+      - id
+      - name
+      - identifier
+      - description
+      - is_public
+      - owner_id
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        description:
+          type: string
+        id:
+          type: string
+          format: uuid
+        identifier:
+          type: string
+        is_public:
+          type: boolean
+        name:
+          type: string
+        owner_id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+    ProjectMember:
+      type: object
+      required:
+      - project_id
+      - user_id
+      - role
+      - joined_at
+      properties:
+        joined_at:
+          type: string
+          format: date-time
+        project_id:
+          type: string
+          format: uuid
+        role:
+          $ref: '#/components/schemas/MemberRole'
+        user_id:
+          type: string
+          format: uuid
+    ReadinessResponse:
+      type: object
+      required:
+      - server
+      - database
+      properties:
+        database:
+          type: string
+        server:
+          type: string
+    RefreshRequest:
+      type: object
+      description: Request body for `POST /api/auth/refresh`.
+      required:
+      - refresh_token
+      properties:
+        refresh_token:
+          type: string
+    RegisterRequest:
+      type: object
+      description: Request body for `POST /api/auth/register`.
+      required:
+      - email
+      - password
+      - display_name
+      properties:
+        display_name:
+          type: string
+        email:
+          type: string
+        password:
+          type: string
+    TokenResponse:
+      type: object
+      description: Response returned after login or refresh.
+      required:
+      - access_token
+      - refresh_token
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+    UpdateIssueRequest:
+      type: object
+      description: |-
+        Request body for `PATCH /api/issues/:issue_id`.
+
+        All fields are optional — only provided fields are updated.
+      properties:
+        assignee_id:
+          type:
+          - string
+          - 'null'
+          format: uuid
+        description:
+          type:
+          - string
+          - 'null'
+        due_date:
+          type:
+          - string
+          - 'null'
+          format: date
+        issue_type:
+          type:
+          - string
+          - 'null'
+        priority:
+          type:
+          - string
+          - 'null'
+        status:
+          type:
+          - string
+          - 'null'
+        subject:
+          type:
+          - string
+          - 'null'
+    UpdateProjectRequest:
+      type: object
+      description: |-
+        Request body for `PATCH /api/projects/:project_id`.
+
+        All fields optional. Omitted fields are left unchanged.
+      properties:
+        description:
+          type:
+          - string
+          - 'null'
+        is_public:
+          type:
+          - boolean
+          - 'null'
+        name:
+          type:
+          - string
+          - 'null'
+    UpdateUserRequest:
+      type: object
+      description: |-
+        Request body for `PATCH /api/users/me`.
+
+        All fields are optional — only provided fields are updated.
+      properties:
+        display_name:
+          type:
+          - string
+          - 'null'
+        new_password:
+          type:
+          - string
+          - 'null'
+    UserResponse:
+      type: object
+      description: Safe view of a user — everything except the password hash.
+      required:
+      - id
+      - email
+      - display_name
+      - created_at
+      - updated_at
+      properties:
+        created_at:
+          type: string
+          format: date-time
+        display_name:
+          type: string
+        email:
+          type: string
+        id:
+          type: string
+          format: uuid
+        updated_at:
+          type: string
+          format: date-time
+  securitySchemes:
+    bearer:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+tags:
+- name: Health
+  description: Health check endpoints
+- name: Auth
+  description: Authentication (register, login, token refresh)
+- name: Users
+  description: User profile management
+- name: Projects
+  description: Project and membership management
+- name: Issues
+  description: Issue tracking
+- name: Comments
+  description: Issue comments

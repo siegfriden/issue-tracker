@@ -11,6 +11,19 @@ use crate::{
 };
 
 /// `POST /auth/register`
+#[utoipa::path(
+    post,
+    path = "/api/auth/register",
+    tag = "Auth",
+    summary = "Register a new user",
+    description = "Creates a new user account and returns an access/refresh token pair.",
+    request_body = RegisterRequest,
+    responses(
+        (status = 201, description = "User registered successfully", body = TokenResponse),
+        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
+        (status = 409, description = "Email already taken", body = crate::errors::ErrorResponse),
+    )
+)]
 pub async fn register(
     State(state): State<AppState>,
     Json(input): Json<RegisterRequest>,
@@ -36,6 +49,19 @@ pub async fn register(
 ///
 /// Both "email not found" and "wrong password" return `401` — intentionally
 /// indistinct to prevent username enumeration.
+#[utoipa::path(
+    post,
+    path = "/api/auth/login",
+    tag = "Auth",
+    summary = "Log in",
+    description = "Authenticates with email and password, returns an access/refresh token pair.",
+    request_body = LoginRequest,
+    responses(
+        (status = 200, description = "Login successful", body = TokenResponse),
+        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
+        (status = 401, description = "Invalid credentials", body = crate::errors::ErrorResponse),
+    )
+)]
 pub async fn login(
     State(state): State<AppState>,
     Json(input): Json<LoginRequest>,
@@ -58,6 +84,18 @@ pub async fn login(
 ///
 /// Validates the refresh token signature and issues a new token pair.
 /// Invalidation is handled externally (Redis).
+#[utoipa::path(
+    post,
+    path = "/api/auth/refresh",
+    tag = "Auth",
+    summary = "Refresh tokens",
+    description = "Validates a refresh token and issues a new access/refresh token pair.",
+    request_body = RefreshRequest,
+    responses(
+        (status = 200, description = "Tokens refreshed", body = TokenResponse),
+        (status = 401, description = "Invalid or expired refresh token", body = crate::errors::ErrorResponse),
+    )
+)]
 pub async fn refresh(
     State(state): State<AppState>,
     Json(input): Json<RefreshRequest>,

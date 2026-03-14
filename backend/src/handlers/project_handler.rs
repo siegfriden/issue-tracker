@@ -21,6 +21,19 @@ use crate::{
 ///
 /// Returns all projects the authenticated user can see:
 /// public projects plus projects they own.
+#[utoipa::path(
+    get,
+    path = "/api/projects",
+    tag = "Projects",
+    summary = "List projects",
+    description = "Returns all projects visible to the authenticated user (public + owned/member).",
+    params(PaginationParams),
+    responses(
+        (status = 200, description = "Paginated list of projects", body = crate::models::paginated_schemas::PaginatedProjectResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn list_projects(
     State(state): State<AppState>,
     auth: Auth,
@@ -32,6 +45,21 @@ pub async fn list_projects(
 }
 
 /// `POST /api/projects`
+#[utoipa::path(
+    post,
+    path = "/api/projects",
+    tag = "Projects",
+    summary = "Create project",
+    description = "Creates a new project. The authenticated user becomes the owner.",
+    request_body = CreateProjectRequest,
+    responses(
+        (status = 201, description = "Project created", body = Project),
+        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 409, description = "Identifier already taken", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn create_project(
     State(state): State<AppState>,
     auth: Auth,
@@ -51,6 +79,21 @@ pub async fn create_project(
 }
 
 /// `GET /api/projects/:project_id`
+#[utoipa::path(
+    get,
+    path = "/api/projects/{project_id}",
+    tag = "Projects",
+    summary = "Get project",
+    description = "Returns a single project by ID. Requires visibility access.",
+    params(("project_id" = Uuid, Path, description = "Project ID")),
+    responses(
+        (status = 200, description = "Project details", body = Project),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn get_project(
     State(state): State<AppState>,
     auth: Auth,
@@ -73,6 +116,23 @@ pub async fn get_project(
 /// `PATCH /api/projects/:project_id`
 ///
 /// Owner or members with `admin` role can update a project.
+#[utoipa::path(
+    patch,
+    path = "/api/projects/{project_id}",
+    tag = "Projects",
+    summary = "Update project",
+    description = "Updates a project's name, description, or visibility. Requires owner or admin role.",
+    params(("project_id" = Uuid, Path, description = "Project ID")),
+    request_body = UpdateProjectRequest,
+    responses(
+        (status = 200, description = "Project updated", body = Project),
+        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn update_project(
     State(state): State<AppState>,
     auth: Auth,
@@ -99,6 +159,21 @@ pub async fn update_project(
 /// `DELETE /api/projects/:project_id`
 ///
 /// Only the project owner can delete a project.
+#[utoipa::path(
+    delete,
+    path = "/api/projects/{project_id}",
+    tag = "Projects",
+    summary = "Delete project",
+    description = "Deletes a project. Only the project owner can perform this action.",
+    params(("project_id" = Uuid, Path, description = "Project ID")),
+    responses(
+        (status = 204, description = "Project deleted"),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied (not owner)", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn delete_project(
     State(state): State<AppState>,
     auth: Auth,
@@ -120,6 +195,24 @@ pub async fn delete_project(
 ///
 /// Returns the list of members for a project. Requires the same visibility
 /// check as viewing the project itself.
+#[utoipa::path(
+    get,
+    path = "/api/projects/{project_id}/members",
+    tag = "Projects",
+    summary = "List project members",
+    description = "Returns the members of a project. Requires visibility access to the project.",
+    params(
+        ("project_id" = Uuid, Path, description = "Project ID"),
+        PaginationParams,
+    ),
+    responses(
+        (status = 200, description = "Paginated list of members", body = crate::models::paginated_schemas::PaginatedProjectMemberResponse),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn list_members(
     State(state): State<AppState>,
     auth: Auth,
@@ -145,6 +238,23 @@ pub async fn list_members(
 /// `POST /api/projects/:project_id/members`
 ///
 /// Adds a user to a project with the given role. Requires admin access.
+#[utoipa::path(
+    post,
+    path = "/api/projects/{project_id}/members",
+    tag = "Projects",
+    summary = "Add project member",
+    description = "Adds a user to a project with the specified role. Requires owner or admin role.",
+    params(("project_id" = Uuid, Path, description = "Project ID")),
+    request_body = AddMemberRequest,
+    responses(
+        (status = 204, description = "Member added"),
+        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
+        (status = 403, description = "Access denied (not admin)", body = crate::errors::ErrorResponse),
+        (status = 404, description = "Project or user not found", body = crate::errors::ErrorResponse),
+        (status = 409, description = "User is already a member", body = crate::errors::ErrorResponse),
+    ),
+    security(("bearer" = [])),
+)]
 pub async fn add_member(
     State(state): State<AppState>,
     auth: Auth,

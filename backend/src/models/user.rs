@@ -1,5 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
@@ -16,7 +17,7 @@ pub struct User {
 }
 
 /// Safe view of a user — everything except the password hash.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct UserResponse {
     pub id: Uuid,
     pub email: String,
@@ -38,7 +39,7 @@ impl From<User> for UserResponse {
 }
 
 /// Request body for `POST /api/auth/register`.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct RegisterRequest {
     #[validate(email(message = "Please enter a valid email address."))]
     pub email: String,
@@ -55,7 +56,7 @@ pub struct RegisterRequest {
 }
 
 /// Request body for `POST /api/auth/login`.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct LoginRequest {
     #[validate(email(message = "Please enter a valid email address."))]
     pub email: String,
@@ -65,13 +66,13 @@ pub struct LoginRequest {
 }
 
 /// Request body for `POST /api/auth/refresh`.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, ToSchema)]
 pub struct RefreshRequest {
     pub refresh_token: String,
 }
 
 /// Response returned after login or refresh.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, ToSchema)]
 pub struct TokenResponse {
     pub access_token: String,
     pub refresh_token: String,
@@ -80,7 +81,7 @@ pub struct TokenResponse {
 /// Request body for `PATCH /api/users/me`.
 ///
 /// All fields are optional — only provided fields are updated.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateUserRequest {
     #[validate(length(
         min = 1,
