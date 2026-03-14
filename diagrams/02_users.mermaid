@@ -1,0 +1,50 @@
+---
+title: "Users — Happy Path Flows & Error Flows"
+---
+sequenceDiagram
+    autonumber
+
+    participant FE as Frontend (Client)
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: GET CURRENT USER — 200 OK
+        FE->>+API: GET /api/users/me<br/>Authorization: Bearer {access_token}
+        API->>API: Extract user_id from JWT
+        API->>+DB: SELECT user WHERE id = jwt.sub
+        DB-->>-API: User row
+        API-->>-FE: 200 OK<br/>{id, email, display_name, created_at, updated_at}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: UPDATE CURRENT USER — 200 OK
+        FE->>+API: PATCH /api/users/me<br/>{display_name?, new_password?}
+        API->>API: Authenticate JWT
+        API->>API: Hash new_password with bcrypt (if provided)
+        API->>+DB: UPDATE user SET display_name / password_hash
+        DB-->>-API: Updated row
+        API-->>-FE: 200 OK<br/>{id, email, display_name, created_at, updated_at}
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 200, 200)
+        Note over FE,API: GET/UPDATE USER — 401 Not authenticated
+        FE->>+API: GET /api/users/me<br/>(no Authorization header)
+        API->>API: No bearer token found
+        API-->>-FE: 401 Unauthorized<br/>{message: "Not authenticated"}
+    end
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: UPDATE USER — 400 Validation error
+        FE->>+API: PATCH /api/users/me<br/>{new_password: "x"}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error"}
+    end

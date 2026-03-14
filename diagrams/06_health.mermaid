@@ -1,0 +1,41 @@
+---
+title: "Health — Probes"
+---
+sequenceDiagram
+    autonumber
+
+    participant CLIENT as K8s / Load Balancer
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(200, 230, 255)
+        Note over CLIENT,API: LIVENESS PROBE — 200 (no auth, no DB)
+        CLIENT->>+API: GET /api/health/live
+        Note right of API: Process is running,<br/>no external deps checked
+        API-->>-CLIENT: 200 OK
+    end
+
+    rect rgb(200, 230, 255)
+        Note over CLIENT,DB: READINESS PROBE — 200 (no auth, pings DB)
+        CLIENT->>+API: GET /api/health/ready
+        API->>+DB: PING database connection
+        DB-->>-API: Pong
+        API-->>-CLIENT: 200 OK<br/>{server: "ok", database: "ok"}
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% ERROR FLOW
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(230, 215, 230)
+        Note over CLIENT,DB: READINESS PROBE — 503 DB unreachable
+        CLIENT->>+API: GET /api/health/ready
+        API->>+DB: PING database connection
+        DB--xAPI: Connection timeout / refused
+        API-->>-CLIENT: 503 Service Unavailable<br/>{server: "ok", database: "error"}
+        Note right of CLIENT: Load balancer removes<br/>instance from pool
+    end

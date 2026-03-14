@@ -1,0 +1,89 @@
+---
+title: "Auth — Happy Path Flows & Error Flows"
+---
+sequenceDiagram
+    autonumber
+
+    participant FE as Frontend (Client)
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: REGISTER — 201 Created
+        FE->>+API: POST /api/auth/register<br/>{email, password, display_name}
+        API->>+DB: INSERT user (email, bcrypt_hash, display_name)
+        DB-->>-API: User row created
+        API->>API: Generate JWT pair (access + refresh)
+        API-->>-FE: 201 Created<br/>{access_token, refresh_token}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: LOGIN — 200 OK
+        FE->>+API: POST /api/auth/login<br/>{email, password}
+        API->>+DB: SELECT user WHERE email = ?
+        DB-->>-API: User row returned
+        API->>API: Verify bcrypt hash
+        API->>API: Generate JWT pair (access + refresh)
+        API-->>-FE: 200 OK<br/>{access_token, refresh_token}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: TOKEN REFRESH — 200 OK
+        FE->>+API: POST /api/auth/refresh<br/>{refresh_token}
+        API->>API: Decode & validate refresh JWT
+        API->>API: Issue new JWT pair
+        API-->>-FE: 200 OK<br/>{access_token, refresh_token}
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: REGISTER — 400 Validation error
+        FE->>+API: POST /api/auth/register<br/>{email: "", password: "x"}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error", data: {...}}
+    end
+
+    rect rgb(255, 235, 200)
+        Note over FE,DB: REGISTER — 409 Duplicate email
+        FE->>+API: POST /api/auth/register<br/>{email: "existing@example.com", ...}
+        API->>+DB: INSERT user — UNIQUE constraint violation
+        DB-->>-API: Conflict error
+        API-->>-FE: 409 Conflict<br/>{message: "Email already taken"}
+    end
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: LOGIN — 400 Validation error
+        FE->>+API: POST /api/auth/login<br/>{email: "user@example.com"}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error", data: {password: "required"}}
+    end
+
+    rect rgb(255, 200, 200)
+        Note over FE,DB: LOGIN — 401 Invalid credentials
+        FE->>+API: POST /api/auth/login<br/>{email: "user@example.com", password: "wrong"}
+        API->>+DB: SELECT user WHERE email = ?
+        DB-->>-API: User row returned
+        API->>API: bcrypt compare — MISMATCH
+        API-->>-FE: 401 Unauthorized<br/>{message: "Invalid credentials"}
+    end
+
+    rect rgb(255, 200, 200)
+        Note over FE,API: REFRESH — 401 Invalid/expired token
+        FE->>+API: POST /api/auth/refresh<br/>{refresh_token: "expired_or_invalid"}
+        API->>API: Validate refresh JWT — FAIL
+        API-->>-FE: 401 Unauthorized<br/>{message: "Invalid or expired refresh token"}
+    end
+
+    rect rgb(255, 200, 200)
+        Note over FE,API: ANY PROTECTED ENDPOINT — 401 Missing/bad JWT
+        FE->>+API: GET /api/projects<br/>Authorization: (missing or invalid)
+        API->>API: No valid bearer token found
+        API-->>-FE: 401 Unauthorized<br/>{message: "Not authenticated"}
+    end

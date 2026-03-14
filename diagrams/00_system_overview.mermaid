@@ -1,0 +1,141 @@
+---
+title: "Issue Tracker API — System Overview"
+---
+flowchart TB
+    %% ════════════════════════════════════════
+    %% CLIENTS
+    %% ════════════════════════════════════════
+
+    subgraph CLIENTS["Frontend / Client Layer"]
+        direction LR
+        WEB["Web App (SPA)"]
+        CLI["CLI / Scripts"]
+        K8S["K8s / LB (Health Probes)"]
+    end
+
+    %% ════════════════════════════════════════
+    %% MIDDLEWARE
+    %% ════════════════════════════════════════
+
+    subgraph MW["Middleware"]
+        direction LR
+        JWT["JWT Authentication\nBearer token extraction"]
+        RBAC["RBAC / Authorization\nowner / admin / member / viewer"]
+        VAL["Request Validation\nJSON body checks"]
+    end
+
+    WEB --> JWT
+    CLI --> JWT
+    JWT --> RBAC
+    RBAC --> VAL
+
+    %% ════════════════════════════════════════
+    %% API ENDPOINT GROUPS
+    %% ════════════════════════════════════════
+
+    subgraph API["API Endpoint Groups"]
+        direction LR
+
+        subgraph AUTH["Auth (no auth required)"]
+            direction TB
+            A1["POST /api/auth/register\n201 TokenResponse | 400 | 409"]
+            A2["POST /api/auth/login\n200 TokenResponse | 400 | 401"]
+            A3["POST /api/auth/refresh\n200 TokenResponse | 401"]
+        end
+
+        subgraph USERS["Users (auth required)"]
+            direction TB
+            U1["GET /api/users/me\n200 UserResponse | 401"]
+            U2["PATCH /api/users/me\n200 UserResponse | 400 | 401"]
+        end
+
+        subgraph PROJECTS["Projects (auth + RBAC)"]
+            direction TB
+            P1["GET /api/projects\n200 Paginated‹Project› | 401"]
+            P2["POST /api/projects\n201 Project | 400 | 401 | 409"]
+            P3["GET /api/projects/:id\n200 Project | 401 | 403 | 404"]
+            P4["PATCH /api/projects/:id\n200 Project | 400 | 401 | 403 | 404"]
+            P5["DELETE /api/projects/:id\n204 | 401 | 403 | 404"]
+        end
+
+        subgraph MEMBERS["Members (auth + RBAC)"]
+            direction TB
+            M1["GET /api/projects/:id/members\n200 Paginated‹ProjectMember› | 401 | 403 | 404"]
+            M2["POST /api/projects/:id/members\n204 | 401 | 403 | 404 | 409"]
+        end
+
+        subgraph ISSUES["Issues (auth + project scope)"]
+            direction TB
+            I1["GET /api/projects/:id/issues\n200 Paginated‹Issue› | 401 | 403 | 404"]
+            I2["POST /api/projects/:id/issues\n201 Issue | 400 | 401 | 403 | 404"]
+            I3["GET /api/issues/:id\n200 Issue | 401 | 403 | 404"]
+            I4["PATCH /api/issues/:id\n200 Issue | 400 | 401 | 403 | 404"]
+            I5["DELETE /api/issues/:id\n204 | 401 | 403 | 404"]
+        end
+
+        subgraph COMMENTS["Comments (auth + issue scope)"]
+            direction TB
+            C1["GET /api/issues/:id/comments\n200 Paginated‹Comment› | 401 | 403 | 404"]
+            C2["POST /api/issues/:id/comments\n201 Comment | 400 | 401 | 403 | 404"]
+            C3["DELETE /api/comments/:id\n204 | 401 | 403 | 404"]
+        end
+
+        subgraph HEALTH["Health (no auth)"]
+            direction TB
+            H1["GET /api/health/live\n200"]
+            H2["GET /api/health/ready\n200 | 503"]
+        end
+    end
+
+    VAL --> AUTH
+    VAL --> USERS
+    VAL --> PROJECTS
+    VAL --> MEMBERS
+    VAL --> ISSUES
+    VAL --> COMMENTS
+    K8S --> HEALTH
+
+    %% ════════════════════════════════════════
+    %% DATABASE LAYER
+    %% ════════════════════════════════════════
+
+    subgraph DB["Database Layer (PostgreSQL)"]
+        direction LR
+        T_USERS[("users\nid / email / password_hash\ndisplay_name")]
+        T_PROJECTS[("projects\nid / name / identifier\nis_public / owner_id")]
+        T_MEMBERS[("project_members\nproject_id / user_id\nrole / joined_at")]
+        T_ISSUES[("issues\nid / project_id / author_id\nsubject / status / priority")]
+        T_COMMENTS[("comments\nid / issue_id / author_id\nbody")]
+    end
+
+    AUTH --> T_USERS
+    USERS --> T_USERS
+    PROJECTS --> T_PROJECTS
+    MEMBERS --> T_MEMBERS
+    ISSUES --> T_ISSUES
+    COMMENTS --> T_COMMENTS
+
+    %% Table relationships
+    T_USERS -. "owns" .-> T_PROJECTS
+    T_USERS -. "joins" .-> T_MEMBERS
+    T_PROJECTS -. "has" .-> T_MEMBERS
+    T_PROJECTS -. "contains" .-> T_ISSUES
+    T_ISSUES -. "has" .-> T_COMMENTS
+
+    %% ════════════════════════════════════════
+    %% STYLES
+    %% ════════════════════════════════════════
+
+    classDef green fill:#d5e8d4,stroke:#82b366,color:#2d6600
+    classDef blue fill:#dae8fc,stroke:#6c8ebf,color:#003366
+    classDef yellow fill:#fff2cc,stroke:#d6b656,color:#665500
+    classDef red fill:#f8cecc,stroke:#b85450,color:#660000
+    classDef purple fill:#e1d5e7,stroke:#9673a6,color:#4a0066
+    classDef client fill:#dae8fc,stroke:#6c8ebf,color:#003366
+
+    class A1,A2,A3,H1,H2 green
+    class U1,U2 blue
+    class P1,P2,P3,P4,P5,M1,M2 yellow
+    class I1,I2,I3,I4,I5 red
+    class C1,C2,C3 purple
+    class WEB,CLI,K8S client

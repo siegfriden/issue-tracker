@@ -1,0 +1,87 @@
+---
+title: "Comments — Happy Path Flows & Error Flows"
+---
+sequenceDiagram
+    autonumber
+
+    participant FE as Frontend (Client)
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: LIST COMMENTS — 200 OK
+        FE->>+API: GET /api/issues/{issue_id}/comments?page=1&limit=20
+        API->>API: Authenticate JWT
+        API->>+DB: Check visibility to parent project,<br/>SELECT comments WHERE issue_id = ?
+        DB-->>-API: Comment rows
+        API-->>-FE: 200 OK<br/>{data: [Comment], total, page, limit}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: CREATE COMMENT — 201 Created
+        FE->>+API: POST /api/issues/{issue_id}/comments<br/>{body}
+        API->>API: Authenticate JWT
+        API->>+DB: Check membership in parent project,<br/>INSERT comment (body, author_id, issue_id)
+        DB-->>-API: Comment row created
+        API-->>-FE: 201 Created<br/>{id, issue_id, author_id, body, created_at, updated_at}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: DELETE COMMENT (author only) — 204
+        FE->>+API: DELETE /api/comments/{comment_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check author_id = jwt.sub, DELETE comment
+        DB-->>-API: Deleted
+        API-->>-FE: 204 No Content
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: CREATE COMMENT — 400 Validation error
+        FE->>+API: POST /api/issues/{id}/comments<br/>{}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error", data: {body: "required"}}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: CREATE COMMENT — 403 Not a project member
+        FE->>+API: POST /api/issues/{issue_id}/comments<br/>{body: "..."}
+        API->>API: Authenticate JWT
+        API->>+DB: Check membership — user is not a member
+        DB-->>-API: Membership check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: LIST/CREATE COMMENTS — 404 Issue not found
+        FE->>+API: GET /api/issues/{nonexistent_uuid}/comments
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT issue — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Issue not found"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: DELETE COMMENT — 404 Not found
+        FE->>+API: DELETE /api/comments/{nonexistent_uuid}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT comment — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Comment not found"}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: DELETE COMMENT — 403 Not author
+        FE->>+API: DELETE /api/comments/{comment_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check author_id — jwt.sub != author_id
+        DB-->>-API: Author check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied (not author)"}
+    end

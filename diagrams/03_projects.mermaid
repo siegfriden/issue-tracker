@@ -1,0 +1,165 @@
+---
+title: "Projects & Members — Happy Path Flows & Error Flows"
+---
+sequenceDiagram
+    autonumber
+
+    participant FE as Frontend (Client)
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% PROJECT HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: CREATE PROJECT — 201 Created
+        FE->>+API: POST /api/projects<br/>{name, identifier, description?, is_public?}
+        API->>API: Authenticate JWT
+        API->>+DB: INSERT project (owner_id = current_user)
+        DB-->>-API: Project row created
+        API-->>-FE: 201 Created<br/>{id, name, identifier, description, is_public, owner_id, ...}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: LIST PROJECTS — 200 OK
+        FE->>+API: GET /api/projects?page=1&limit=20
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT projects WHERE is_public OR user is owner/member
+        DB-->>-API: Rows returned
+        API-->>-FE: 200 OK<br/>{data: [Project], total, page, limit}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: GET PROJECT — 200 OK
+        FE->>+API: GET /api/projects/{project_id}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT project + check visibility access
+        DB-->>-API: Project row
+        API-->>-FE: 200 OK<br/>{id, name, identifier, description, is_public, owner_id, ...}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: UPDATE PROJECT (owner/admin) — 200 OK
+        FE->>+API: PATCH /api/projects/{project_id}<br/>{name?, description?, is_public?}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role = owner|admin, UPDATE project
+        DB-->>-API: Updated row
+        API-->>-FE: 200 OK<br/>{Project}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: DELETE PROJECT (owner only) — 204
+        FE->>+API: DELETE /api/projects/{project_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role = owner, DELETE CASCADE
+        DB-->>-API: Deleted
+        API-->>-FE: 204 No Content
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% MEMBER HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: LIST MEMBERS — 200 OK
+        FE->>+API: GET /api/projects/{project_id}/members?page=1&limit=20
+        API->>API: Authenticate JWT
+        API->>+DB: Check visibility, SELECT members WHERE project_id = ?
+        DB-->>-API: Member rows
+        API-->>-FE: 200 OK<br/>{data: [ProjectMember], total, page, limit}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: ADD MEMBER (owner/admin) — 204
+        FE->>+API: POST /api/projects/{project_id}/members<br/>{user_id, role: "admin"|"member"|"viewer"}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role = owner|admin, INSERT member
+        DB-->>-API: Member added
+        API-->>-FE: 204 No Content
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% PROJECT ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: CREATE PROJECT — 400 Validation error
+        FE->>+API: POST /api/projects<br/>{name: "", identifier: ""}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error", data: {name: "required"}}
+    end
+
+    rect rgb(255, 235, 200)
+        Note over FE,DB: CREATE PROJECT — 409 Duplicate identifier
+        FE->>+API: POST /api/projects<br/>{name: "My Project", identifier: "existing-slug"}
+        API->>+DB: INSERT project — UNIQUE constraint violation
+        DB-->>-API: Conflict error
+        API-->>-FE: 409 Conflict<br/>{message: "Identifier already taken"}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: GET PROJECT — 403 Access denied
+        FE->>+API: GET /api/projects/{project_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Project is private, user is not a member
+        DB-->>-API: Visibility check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: GET PROJECT — 404 Not found
+        FE->>+API: GET /api/projects/{nonexistent_uuid}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT project — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Project not found"}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: UPDATE PROJECT — 403 Not owner/admin
+        FE->>+API: PATCH /api/projects/{project_id}<br/>{name: "New Name"}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role — user is "member" (needs admin+)
+        DB-->>-API: Role check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied"}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: DELETE PROJECT — 403 Not owner
+        FE->>+API: DELETE /api/projects/{project_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role — user is not owner
+        DB-->>-API: Role check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied (not owner)"}
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% MEMBER ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: ADD MEMBER — 403 Not owner/admin
+        FE->>+API: POST /api/projects/{id}/members<br/>{user_id: "...", role: "member"}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role — user is "member" (needs admin+)
+        DB-->>-API: Role check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied (not admin)"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: ADD MEMBER — 404 Project or user not found
+        FE->>+API: POST /api/projects/{id}/members<br/>{user_id: "nonexistent", role: "member"}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT project or user — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Project or user not found"}
+    end
+
+    rect rgb(255, 235, 200)
+        Note over FE,DB: ADD MEMBER — 409 Already a member
+        FE->>+API: POST /api/projects/{id}/members<br/>{user_id: "existing-member", role: "member"}
+        API->>+DB: INSERT member — UNIQUE constraint violation
+        DB-->>-API: Conflict error
+        API-->>-FE: 409 Conflict<br/>{message: "User is already a member"}
+    end

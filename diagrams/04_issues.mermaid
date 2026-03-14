@@ -1,0 +1,105 @@
+---
+title: "Issues — Happy Path Flows & Error Flows"
+---
+sequenceDiagram
+    autonumber
+
+    participant FE as Frontend (Client)
+    participant API as API Layer
+    participant DB as Backend / Database
+
+    %% ═══════════════════════════════════════════════
+    %% HAPPY PATH FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: CREATE ISSUE — 201 Created
+        FE->>+API: POST /api/projects/{project_id}/issues<br/>{subject, description?, issue_type?, priority?,<br/>status?, assignee_id?, due_date?}
+        API->>API: Authenticate JWT
+        API->>+DB: Check write access (owner/admin/member),<br/>INSERT issue (author_id = current_user)
+        DB-->>-API: Issue row created
+        API-->>-FE: 201 Created<br/>{id, project_id, author_id, subject,<br/>description, issue_type, status, priority, ...}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: LIST ISSUES (with filters) — 200 OK
+        FE->>+API: GET /api/projects/{project_id}/issues<br/>?status=open&priority=high&assignee_id=...&page=1&limit=20
+        API->>API: Authenticate JWT
+        API->>+DB: Check visibility, SELECT issues<br/>WHERE project_id = ? AND filters
+        DB-->>-API: Filtered rows
+        API-->>-FE: 200 OK<br/>{data: [Issue], total, page, limit}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: GET ISSUE — 200 OK
+        FE->>+API: GET /api/issues/{issue_id}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT issue + verify visibility to parent project
+        DB-->>-API: Issue row
+        API-->>-FE: 200 OK<br/>{id, project_id, author_id, subject, description,<br/>issue_type, status, priority, assignee_id, due_date, ...}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: UPDATE ISSUE (partial) — 200 OK
+        FE->>+API: PATCH /api/issues/{issue_id}<br/>{subject?, description?, issue_type?, status?,<br/>priority?, assignee_id?, due_date?}
+        API->>API: Authenticate JWT
+        API->>+DB: Check write access, UPDATE SET changed fields only
+        DB-->>-API: Updated row
+        API-->>-FE: 200 OK<br/>{Issue}
+    end
+
+    rect rgb(212, 232, 212)
+        Note over FE,DB: DELETE ISSUE (author only) — 204
+        FE->>+API: DELETE /api/issues/{issue_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check author_id = jwt.sub, DELETE issue
+        DB-->>-API: Deleted
+        API-->>-FE: 204 No Content
+    end
+
+    %% ═══════════════════════════════════════════════
+    %% ERROR FLOWS
+    %% ═══════════════════════════════════════════════
+
+    rect rgb(255, 220, 220)
+        Note over FE,API: CREATE ISSUE — 400 Validation error
+        FE->>+API: POST /api/projects/{id}/issues<br/>{}
+        API->>API: Validate request body — FAIL
+        API-->>-FE: 400 Bad Request<br/>{message: "Validation error", data: {subject: "required"}}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: CREATE ISSUE — 403 No write access
+        FE->>+API: POST /api/projects/{project_id}/issues<br/>{subject: "New bug"}
+        API->>API: Authenticate JWT
+        API->>+DB: Check role — user is "viewer" (read-only)
+        DB-->>-API: Role check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: LIST ISSUES — 404 Project not found
+        FE->>+API: GET /api/projects/{bad_uuid}/issues
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT project — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Project not found"}
+    end
+
+    rect rgb(240, 220, 220)
+        Note over FE,DB: GET/UPDATE/DELETE ISSUE — 404 Not found
+        FE->>+API: GET /api/issues/{nonexistent_uuid}
+        API->>API: Authenticate JWT
+        API->>+DB: SELECT issue — 0 rows
+        DB-->>-API: No result
+        API-->>-FE: 404 Not Found<br/>{message: "Issue not found"}
+    end
+
+    rect rgb(255, 210, 210)
+        Note over FE,DB: DELETE ISSUE — 403 Not author
+        FE->>+API: DELETE /api/issues/{issue_id}
+        API->>API: Authenticate JWT
+        API->>+DB: Check author_id — jwt.sub != author_id
+        DB-->>-API: Author check failed
+        API-->>-FE: 403 Forbidden<br/>{message: "Access denied (not author)"}
+    end
