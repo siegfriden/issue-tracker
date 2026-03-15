@@ -93,23 +93,3 @@ impl Modify for SecurityAddon {
         }
     }
 }
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn generate_openapi_yaml() {
-        let spec = ApiDoc::openapi();
-        let yaml = spec.to_yaml().expect("Failed to serialize OpenAPI spec to YAML");
-        std::fs::write("openapi.yaml", &yaml).expect("Failed to write openapi.yaml");
-
-        // Verify it's valid YAML with expected structure
-        assert!(yaml.contains("openapi:"));
-        assert!(yaml.contains("Issue Tracker API"));
-        assert!(yaml.contains("/api/auth/register"));
-        assert!(yaml.contains("/api/projects"));
-        assert!(yaml.contains("/api/issues"));
-        assert!(yaml.contains("bearer"));
-    }
-}

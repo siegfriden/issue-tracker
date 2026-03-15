@@ -1,28 +1,7 @@
-mod auth;
-mod config;
-mod errors;
-mod extractors;
-mod handlers;
-mod models;
-mod openapi;
-mod repositories;
-mod routes;
-
 use std::net::SocketAddr;
 
-use config::Config;
-use sqlx::PgPool;
+use issue_tracker_api::{AppState, config::Config, routes};
 use tracing_subscriber::EnvFilter;
-
-/// Shared application state injected into every handler via Axum's `State` extractor.
-///
-/// `PgPool` is internally reference-counted — cloning it is cheap and shares the
-/// underlying pool. `Config` holds only primitive types, so it's also cheap to clone.
-#[derive(Clone)]
-struct AppState {
-    db: PgPool,
-    config: Config,
-}
 
 #[tokio::main]
 async fn main() {
