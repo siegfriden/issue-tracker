@@ -993,8 +993,8 @@ components:
     ErrorResponse:
       type: object
       description: |-
-        Schema-only type for documenting the standard error response shape in OpenAPI.
-        Not used at runtime — the actual JSON is built inline in `AppError::into_response`.
+        Standard error response shape shared by OpenAPI docs (`ToSchema`) and runtime
+        serialization in `AppError::into_response`, keeping both in sync.
       required:
       - message
       properties:
