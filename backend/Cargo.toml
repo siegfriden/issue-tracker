@@ -11,6 +11,14 @@ path = "src/main.rs"
 name = "generate-openapi"
 path = "src/bin/generate_openapi.rs"
 
+[[bin]]
+name = "migrate-up"
+path = "src/bin/migrate_up.rs"
+
+[[bin]]
+name = "migrate-down"
+path = "src/bin/migrate_down.rs"
+
 [dependencies]
 # Web framework
 axum = "0.8"
