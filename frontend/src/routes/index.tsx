@@ -1,37 +1,41 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, useNavigate } from '@tanstack/react-router'
 
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card'
-import { useExampleQuery } from '@/hooks/use-example-query'
+import { Navbar } from '@/components/layouts/navbar'
+import { Button } from '@/components/ui/button'
+import { useUser } from '@/features/auth/api/get-user'
 
-// File-based route: this file maps to "/"
 export const Route = createFileRoute('/')({
-  component: HomePage,
+  component: LandingPage,
 })
 
-function HomePage() {
-  const { data, isLoading } = useExampleQuery()
+function LandingPage() {
+  const navigate = useNavigate()
+  const user = useUser()
 
-  if (isLoading) {
-    return <p className="text-muted-foreground">Loading...</p>
+  const handleStart = () => {
+    if (user.data) {
+      navigate({ to: '/app' })
+    } else {
+      navigate({ to: '/auth/login' })
+    }
   }
 
   return (
-    <div className="max-w-lg">
-      <Card>
-        <CardHeader>
-          <CardTitle>{data?.title}</CardTitle>
-          <CardDescription>v{data?.version}</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <p className="text-muted-foreground text-sm">{data?.description}</p>
-        </CardContent>
-      </Card>
+    <div className="bg-background flex min-h-screen flex-col">
+      <Navbar />
+      <div className="flex flex-1 items-center justify-center">
+        <div className="text-center">
+          <h1 className="text-foreground text-3xl font-bold tracking-tight">
+            Issue Tracker
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Track projects, manage issues, collaborate with your team.
+          </p>
+          <div className="mt-8">
+            <Button onClick={handleStart}>Get started</Button>
+          </div>
+        </div>
+      </div>
     </div>
   )
 }
