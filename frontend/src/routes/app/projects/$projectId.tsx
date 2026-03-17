@@ -1,10 +1,9 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Outlet, createFileRoute } from '@tanstack/react-router'
 
 export const Route = createFileRoute('/app/projects/$projectId')({
-  component: ProjectDetailsRoute,
+  component: ProjectLayout,
 })
 
-function ProjectDetailsRoute() {
-  const { projectId } = Route.useParams()
-  return <div>Project {projectId}</div>
+function ProjectLayout() {
+  return <Outlet />
 }

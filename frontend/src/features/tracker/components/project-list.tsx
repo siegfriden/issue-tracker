@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 
 import { useProjects } from '../api/get-projects'
+import { CreateProjectDialog } from './create-project-dialog'
 import { ProjectCard } from './project-card'
 
 export function ProjectList() {
@@ -25,10 +26,12 @@ export function ProjectList() {
       {/* Page header */}
       <div className="flex items-center justify-between">
         <h1 className="text-foreground text-lg font-semibold">Projects</h1>
-        <Button size="lg">
-          <Plus className="size-3.5" data-icon="inline-start" />
-          New Project
-        </Button>
+        <CreateProjectDialog>
+          <Button size="lg">
+            <Plus className="size-3.5" data-icon="inline-start" />
+            New Project
+          </Button>
+        </CreateProjectDialog>
       </div>
 
       {/* Loading skeleton */}

@@ -15,6 +15,10 @@ import { Route as AppIndexRouteImport } from './routes/app/index'
 import { Route as AuthRegisterRouteImport } from './routes/auth/register'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as AppProjectsProjectIdRouteImport } from './routes/app/projects/$projectId'
+import { Route as AppProjectsProjectIdIndexRouteImport } from './routes/app/projects/$projectId/index'
+import { Route as AppProjectsProjectIdMembersRouteImport } from './routes/app/projects/$projectId/members'
+import { Route as AppProjectsProjectIdKanbanRouteImport } from './routes/app/projects/$projectId/kanban'
+import { Route as AppProjectsProjectIdIssuesIssueIdIndexRouteImport } from './routes/app/projects/$projectId/issues/$issueId/index'
 
 const App_routeRoute = App_routeRouteImport.update({
   id: '/app',
@@ -46,6 +50,30 @@ const AppProjectsProjectIdRoute = AppProjectsProjectIdRouteImport.update({
   path: '/projects/$projectId',
   getParentRoute: () => App_routeRoute,
 } as any)
+const AppProjectsProjectIdIndexRoute =
+  AppProjectsProjectIdIndexRouteImport.update({
+    id: '/',
+    path: '/',
+    getParentRoute: () => AppProjectsProjectIdRoute,
+  } as any)
+const AppProjectsProjectIdMembersRoute =
+  AppProjectsProjectIdMembersRouteImport.update({
+    id: '/members',
+    path: '/members',
+    getParentRoute: () => AppProjectsProjectIdRoute,
+  } as any)
+const AppProjectsProjectIdKanbanRoute =
+  AppProjectsProjectIdKanbanRouteImport.update({
+    id: '/kanban',
+    path: '/kanban',
+    getParentRoute: () => AppProjectsProjectIdRoute,
+  } as any)
+const AppProjectsProjectIdIssuesIssueIdIndexRoute =
+  AppProjectsProjectIdIssuesIssueIdIndexRouteImport.update({
+    id: '/issues/$issueId/',
+    path: '/issues/$issueId/',
+    getParentRoute: () => AppProjectsProjectIdRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -53,14 +81,21 @@ export interface FileRoutesByFullPath {
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/app/': typeof AppIndexRoute
-  '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/app/projects/$projectId': typeof AppProjectsProjectIdRouteWithChildren
+  '/app/projects/$projectId/kanban': typeof AppProjectsProjectIdKanbanRoute
+  '/app/projects/$projectId/members': typeof AppProjectsProjectIdMembersRoute
+  '/app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/issues/$issueId/': typeof AppProjectsProjectIdIssuesIssueIdIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/app': typeof AppIndexRoute
-  '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/app/projects/$projectId/kanban': typeof AppProjectsProjectIdKanbanRoute
+  '/app/projects/$projectId/members': typeof AppProjectsProjectIdMembersRoute
+  '/app/projects/$projectId': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/issues/$issueId': typeof AppProjectsProjectIdIssuesIssueIdIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -69,7 +104,11 @@ export interface FileRoutesById {
   '/auth/login': typeof AuthLoginRoute
   '/auth/register': typeof AuthRegisterRoute
   '/app/': typeof AppIndexRoute
-  '/app/projects/$projectId': typeof AppProjectsProjectIdRoute
+  '/app/projects/$projectId': typeof AppProjectsProjectIdRouteWithChildren
+  '/app/projects/$projectId/kanban': typeof AppProjectsProjectIdKanbanRoute
+  '/app/projects/$projectId/members': typeof AppProjectsProjectIdMembersRoute
+  '/app/projects/$projectId/': typeof AppProjectsProjectIdIndexRoute
+  '/app/projects/$projectId/issues/$issueId/': typeof AppProjectsProjectIdIssuesIssueIdIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -80,13 +119,20 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/app/'
     | '/app/projects/$projectId'
+    | '/app/projects/$projectId/kanban'
+    | '/app/projects/$projectId/members'
+    | '/app/projects/$projectId/'
+    | '/app/projects/$projectId/issues/$issueId/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth/login'
     | '/auth/register'
     | '/app'
+    | '/app/projects/$projectId/kanban'
+    | '/app/projects/$projectId/members'
     | '/app/projects/$projectId'
+    | '/app/projects/$projectId/issues/$issueId'
   id:
     | '__root__'
     | '/'
@@ -95,6 +141,10 @@ export interface FileRouteTypes {
     | '/auth/register'
     | '/app/'
     | '/app/projects/$projectId'
+    | '/app/projects/$projectId/kanban'
+    | '/app/projects/$projectId/members'
+    | '/app/projects/$projectId/'
+    | '/app/projects/$projectId/issues/$issueId/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -148,17 +198,63 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppProjectsProjectIdRouteImport
       parentRoute: typeof App_routeRoute
     }
+    '/app/projects/$projectId/': {
+      id: '/app/projects/$projectId/'
+      path: '/'
+      fullPath: '/app/projects/$projectId/'
+      preLoaderRoute: typeof AppProjectsProjectIdIndexRouteImport
+      parentRoute: typeof AppProjectsProjectIdRoute
+    }
+    '/app/projects/$projectId/members': {
+      id: '/app/projects/$projectId/members'
+      path: '/members'
+      fullPath: '/app/projects/$projectId/members'
+      preLoaderRoute: typeof AppProjectsProjectIdMembersRouteImport
+      parentRoute: typeof AppProjectsProjectIdRoute
+    }
+    '/app/projects/$projectId/kanban': {
+      id: '/app/projects/$projectId/kanban'
+      path: '/kanban'
+      fullPath: '/app/projects/$projectId/kanban'
+      preLoaderRoute: typeof AppProjectsProjectIdKanbanRouteImport
+      parentRoute: typeof AppProjectsProjectIdRoute
+    }
+    '/app/projects/$projectId/issues/$issueId/': {
+      id: '/app/projects/$projectId/issues/$issueId/'
+      path: '/issues/$issueId'
+      fullPath: '/app/projects/$projectId/issues/$issueId/'
+      preLoaderRoute: typeof AppProjectsProjectIdIssuesIssueIdIndexRouteImport
+      parentRoute: typeof AppProjectsProjectIdRoute
+    }
   }
 }
 
+interface AppProjectsProjectIdRouteChildren {
+  AppProjectsProjectIdKanbanRoute: typeof AppProjectsProjectIdKanbanRoute
+  AppProjectsProjectIdMembersRoute: typeof AppProjectsProjectIdMembersRoute
+  AppProjectsProjectIdIndexRoute: typeof AppProjectsProjectIdIndexRoute
+  AppProjectsProjectIdIssuesIssueIdIndexRoute: typeof AppProjectsProjectIdIssuesIssueIdIndexRoute
+}
+
+const AppProjectsProjectIdRouteChildren: AppProjectsProjectIdRouteChildren = {
+  AppProjectsProjectIdKanbanRoute: AppProjectsProjectIdKanbanRoute,
+  AppProjectsProjectIdMembersRoute: AppProjectsProjectIdMembersRoute,
+  AppProjectsProjectIdIndexRoute: AppProjectsProjectIdIndexRoute,
+  AppProjectsProjectIdIssuesIssueIdIndexRoute:
+    AppProjectsProjectIdIssuesIssueIdIndexRoute,
+}
+
+const AppProjectsProjectIdRouteWithChildren =
+  AppProjectsProjectIdRoute._addFileChildren(AppProjectsProjectIdRouteChildren)
+
 interface App_routeRouteChildren {
   AppIndexRoute: typeof AppIndexRoute
-  AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRoute
+  AppProjectsProjectIdRoute: typeof AppProjectsProjectIdRouteWithChildren
 }
 
 const App_routeRouteChildren: App_routeRouteChildren = {
   AppIndexRoute: AppIndexRoute,
-  AppProjectsProjectIdRoute: AppProjectsProjectIdRoute,
+  AppProjectsProjectIdRoute: AppProjectsProjectIdRouteWithChildren,
 }
 
 const App_routeRouteWithChildren = App_routeRoute._addFileChildren(

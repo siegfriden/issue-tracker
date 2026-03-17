@@ -48,10 +48,13 @@ api.interceptors.response.use(
 
     if (error.response?.status === 401) {
       clearTokens()
+      const searchParams = new URLSearchParams()
       const redirectTo = window.location.pathname + window.location.search
-      window.location.replace(
-        `/login${redirectTo ? `?redirect_to=${encodeURIComponent(redirectTo)}` : ''}`,
-      )
+      if (redirectTo && redirectTo !== '/auth/login') {
+        searchParams.set('redirect_to', redirectTo)
+      }
+      const search = searchParams.toString()
+      window.location.replace(`/auth/login${search ? `?${search}` : ''}`)
     }
 
     return Promise.reject(error)
