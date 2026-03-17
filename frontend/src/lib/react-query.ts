@@ -43,7 +43,7 @@ export type MutationConfig<
   UseMutationOptions<
     Awaited<ReturnType<MutationFnType>>,
     Error,
-    Parameters<MutationFnType>[0]
+    Parameters<MutationFnType> extends [] ? void : Parameters<MutationFnType>[0]
   >,
   'mutationFn'
 >
