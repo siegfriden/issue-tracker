@@ -53,12 +53,10 @@ pub async fn find_by_id(pool: &PgPool, id: Uuid) -> Result<Option<Project>, sqlx
 }
 
 pub async fn exists_by_identifier(pool: &PgPool, identifier: &str) -> Result<bool, sqlx::Error> {
-    let exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM projects WHERE identifier = $1)",
-        identifier
-    )
-    .fetch_one(pool)
-    .await?;
+    let exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM projects WHERE identifier = $1)")
+        .bind(identifier)
+        .fetch_one(pool)
+        .await?;
     Ok(exists.unwrap_or(false))
 }
 
@@ -67,13 +65,11 @@ pub async fn exists_member(
     project_id: Uuid,
     user_id: Uuid,
 ) -> Result<bool, sqlx::Error> {
-    let exists = sqlx::query_scalar!(
-        "SELECT EXISTS(SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2)",
-        project_id,
-        user_id
-    )
-    .fetch_one(pool)
-    .await?;
+    let exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM project_members WHERE project_id = $1 AND user_id = $2)")
+        .bind(project_id)
+        .bind(user_id)
+        .fetch_one(pool)
+        .await?;
     Ok(exists.unwrap_or(false))
 }
 

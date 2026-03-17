@@ -26,7 +26,8 @@ pub async fn find_by_email(pool: &PgPool, email: &str) -> Result<Option<User>, s
 }
 
 pub async fn exists_by_email(pool: &PgPool, email: &str) -> Result<bool, sqlx::Error> {
-    let exists = sqlx::query_scalar!("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)", email)
+    let exists: Option<bool> = sqlx::query_scalar("SELECT EXISTS(SELECT 1 FROM users WHERE email = $1)")
+        .bind(email)
         .fetch_one(pool)
         .await?;
     Ok(exists.unwrap_or(false))
