@@ -5,7 +5,7 @@ use crate::{
     AppState,
     auth::{jwt, password},
     errors::AppError,
-    extractors::Json,
+    extract::Json,
     models::user::{LoginRequest, RefreshRequest, RegisterRequest, TokenResponse},
     repositories::user_repository,
 };

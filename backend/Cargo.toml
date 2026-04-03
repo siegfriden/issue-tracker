@@ -21,7 +21,8 @@ path = "src/bin/migrate_down.rs"
 
 [dependencies]
 # Web framework
-axum = "0.8"
+axum = { version = "0.8", features = ["macros"] }
+
 tower-http = { version = "0.5", features = ["trace", "cors"] }
 
 # Async runtime

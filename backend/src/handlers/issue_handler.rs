@@ -6,7 +6,7 @@ use crate::{
     AppState,
     auth::middleware::Auth,
     errors::AppError,
-    extractors::{Json, Path, Query},
+    extract::{Json, Path, Query},
     models::{
         PaginatedResponse, PaginationParams,
         issue::{CreateIssueRequest, Issue, IssueFilters, UpdateIssueRequest},

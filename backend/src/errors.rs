@@ -2,6 +2,7 @@ use std::collections::HashMap;
 
 use axum::{
     Json,
+    extract::rejection::{JsonRejection, PathRejection, QueryRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -115,6 +116,30 @@ impl From<ValidationErrors> for AppError {
             })
             .collect();
         AppError::Validation(data)
+    }
+}
+
+/// Converts Axum's [`JsonRejection`] into [`AppError::BadRequest`].
+/// Used by the `#[derive(FromRequest)]` macro on [`crate::extractors::Json`].
+impl From<JsonRejection> for AppError {
+    fn from(rejection: JsonRejection) -> Self {
+        AppError::BadRequest(rejection.body_text())
+    }
+}
+
+/// Converts Axum's [`PathRejection`] into [`AppError::BadRequest`].
+/// Used by the `#[derive(FromRequestParts)]` macro on [`crate::extractors::Path`].
+impl From<PathRejection> for AppError {
+    fn from(rejection: PathRejection) -> Self {
+        AppError::BadRequest(rejection.body_text())
+    }
+}
+
+/// Converts Axum's [`QueryRejection`] into [`AppError::BadRequest`].
+/// Used by the `#[derive(FromRequestParts)]` macro on [`crate::extractors::Query`].
+impl From<QueryRejection> for AppError {
+    fn from(rejection: QueryRejection) -> Self {
+        AppError::BadRequest(rejection.body_text())
     }
 }
 

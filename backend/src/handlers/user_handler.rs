@@ -5,7 +5,7 @@ use crate::{
     AppState,
     auth::{middleware::Auth, password},
     errors::AppError,
-    extractors::Json,
+    extract::Json,
     models::user::{UpdateUserRequest, UserResponse},
     repositories::user_repository,
 };
