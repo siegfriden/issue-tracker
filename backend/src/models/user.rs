@@ -83,6 +83,7 @@ pub struct TokenResponse {
 /// All fields are optional — only provided fields are updated.
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateUserRequest {
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
         min = 1,
         max = 100,
@@ -90,6 +91,7 @@ pub struct UpdateUserRequest {
     ))]
     pub display_name: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(min = 8, message = "New password must be at least 8 characters long."))]
     pub new_password: Option<String>,
 }

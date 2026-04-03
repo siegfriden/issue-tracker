@@ -57,6 +57,7 @@ pub struct CreateProjectRequest {
 /// All fields optional. Omitted fields are left unchanged.
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateProjectRequest {
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
         min = 1,
         max = 200,
@@ -64,12 +65,14 @@ pub struct UpdateProjectRequest {
     ))]
     pub name: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
         max = 10000,
         message = "Description must be at most 10,000 characters."
     ))]
     pub description: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     pub is_public: Option<bool>,
 }
 

@@ -72,6 +72,7 @@ pub struct CreateIssueRequest {
 /// All fields are optional — only provided fields are updated.
 #[derive(Debug, Deserialize, Validate, ToSchema)]
 pub struct UpdateIssueRequest {
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
         min = 1,
         max = 300,
@@ -79,6 +80,7 @@ pub struct UpdateIssueRequest {
     ))]
     pub subject: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
         max = 10000,
         message = "Description must be at most 10,000 characters."
@@ -89,12 +91,15 @@ pub struct UpdateIssueRequest {
     #[schema(value_type = Option<Uuid>, nullable)]
     pub assignee_id: Option<Option<Uuid>>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(custom(function = "validate_issue_type"))]
     pub issue_type: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(custom(function = "validate_status"))]
     pub status: Option<String>,
 
+    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(custom(function = "validate_priority"))]
     pub priority: Option<String>,
 

@@ -23,6 +23,25 @@ pub(super) mod nullable {
     }
 }
 
+/// Serde deserializer for `Option<T>` fields (non-nullable PATCH columns).
+///
+/// Rejects explicit JSON `null` while still allowing the field to be absent.
+///
+/// - Field absent → `None` (via `#[serde(default)]`)
+/// - Field is `null` → deserialization error (400 Bad Request)
+/// - Field has value → `Some(v)`
+pub(super) mod non_nullable {
+    use serde::{Deserialize, Deserializer};
+
+    pub fn deserialize<'de, T, D>(deserializer: D) -> Result<Option<T>, D::Error>
+    where
+        T: Deserialize<'de>,
+        D: Deserializer<'de>,
+    {
+        T::deserialize(deserializer).map(Some)
+    }
+}
+
 /// Query parameters for paginated list endpoints.
 ///
 /// Both fields are optional; defaults are applied when absent.
