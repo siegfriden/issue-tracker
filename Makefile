@@ -8,31 +8,31 @@ db-up:
 db-down:
 	cd backend && cargo run --bin migrate-down
 
-run-be:
+run-api:
 	cd backend && cargo run --bin issue-tracker-api
-run-fe:
+run-ui:
 	cd frontend && npm run dev
 run-all:
 	@echo "Starting backend and frontend... (Press Ctrl+C to stop)"
-	@trap 'kill 0' SIGINT; make run-be & make run-fe & wait
+	@trap 'kill 0' SIGINT; make run-api & make run-ui & wait
 
-lint-be:
+lint-api:
 	cd backend && cargo clippy -- -D warnings
-lint-fe:
+lint-ui:
 	cd frontend && npm run lint
 lint-all:
 	@echo "Linting backend and frontend..."
-	@make lint-be
-	@make lint-fe
+	@make lint-api
+	@make lint-ui
 
-fmt-be:
+fmt-api:
 	cd backend && cargo fmt
-fmt-fe:
+fmt-ui:
 	cd frontend && npm run format
 fmt-all:
 	@echo "Formatting backend and frontend..."
-	@make fmt-be
-	@make fmt-fe
+	@make fmt-api
+	@make fmt-ui
 
 openapi:
 	cd backend && cargo run --bin generate_openapi -- ../references/openapi.yaml
