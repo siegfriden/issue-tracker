@@ -47,8 +47,6 @@ use utoipa::{Modify, OpenApi};
         crate::models::user::UserResponse,
         crate::models::user::RegisterRequest,
         crate::models::user::LoginRequest,
-        crate::models::user::RefreshRequest,
-        crate::models::user::TokenResponse,
         crate::models::user::UpdateUserRequest,
         // Projects
         crate::models::project::Project,

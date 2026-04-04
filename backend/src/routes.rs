@@ -1,5 +1,6 @@
 use std::time::Duration;
 
+use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use axum::{
     Router,
     http::{HeaderValue, Request, Response},
@@ -30,8 +31,14 @@ pub fn build(state: AppState) -> Router {
                 || origin.as_bytes().starts_with(b"http://127.0.0.1:")
                 || origin.as_bytes() == b"http://127.0.0.1"
         }))
-        .allow_methods(tower_http::cors::Any)
-        .allow_headers(tower_http::cors::Any);
+        .allow_methods([
+            axum::http::Method::GET,
+            axum::http::Method::POST,
+            axum::http::Method::PATCH,
+            axum::http::Method::DELETE,
+        ])
+        .allow_headers([ACCEPT, AUTHORIZATION, CONTENT_TYPE])
+        .allow_credentials(true);
 
     let trace = TraceLayer::new_for_http()
         .make_span_with(|req: &Request<_>| {
@@ -80,6 +87,7 @@ fn auth_routes() -> Router<AppState> {
         .route("/register", post(auth_handler::register))
         .route("/login", post(auth_handler::login))
         .route("/refresh", post(auth_handler::refresh))
+        .route("/logout", post(auth_handler::logout))
 }
 
 fn user_routes() -> Router<AppState> {

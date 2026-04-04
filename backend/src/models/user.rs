@@ -65,19 +65,6 @@ pub struct LoginRequest {
     pub password: String,
 }
 
-/// Request body for `POST /api/auth/refresh`.
-#[derive(Debug, Deserialize, ToSchema)]
-pub struct RefreshRequest {
-    pub refresh_token: String,
-}
-
-/// Response returned after login or refresh.
-#[derive(Debug, Serialize, ToSchema)]
-pub struct TokenResponse {
-    pub access_token: String,
-    pub refresh_token: String,
-}
-
 /// Request body for `PATCH /api/users/me`.
 ///
 /// All fields are optional — only provided fields are updated.

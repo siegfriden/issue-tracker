@@ -1,12 +1,14 @@
-use axum::{
-    extract::{FromRef, FromRequestParts},
-    http::{header::AUTHORIZATION, request::Parts},
-};
+use axum::extract::{FromRef, FromRequestParts};
+use axum::http::request::Parts;
 use uuid::Uuid;
 
-use crate::{AppState, auth::jwt, errors::AppError};
+use crate::{
+    AppState,
+    auth::{cookie, jwt},
+    errors::AppError,
+};
 
-/// Axum extractor that authenticates a request via `Authorization: Bearer <token>`.
+/// Axum extractor that authenticates a request via the `access_token` httpOnly cookie.
 ///
 /// Add it as a parameter to any handler that requires authentication:
 ///
@@ -31,14 +33,9 @@ where
     async fn from_request_parts(parts: &mut Parts, state: &S) -> Result<Self, Self::Rejection> {
         let app_state = AppState::from_ref(state);
 
-        let token = parts
-            .headers
-            .get(AUTHORIZATION)
-            .and_then(|v| v.to_str().ok())
-            .and_then(|v| v.strip_prefix("Bearer "))
-            .ok_or(AppError::Unauthorized)?;
+        let token = cookie::extract_cookie(parts, "access_token").ok_or(AppError::Unauthorized)?;
 
-        let claims = jwt::validate_token(token, &app_state.config.jwt_secret)?;
+        let claims = jwt::validate_token(&token, &app_state.config.jwt_secret)?;
 
         if claims.token_type != "access" {
             return Err(AppError::Unauthorized);

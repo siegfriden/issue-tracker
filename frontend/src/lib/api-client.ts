@@ -1,62 +1,79 @@
-import Axios, { type InternalAxiosRequestConfig } from 'axios'
+import Axios, { type AxiosError, type InternalAxiosRequestConfig } from 'axios'
 import { toast } from 'sonner'
 
 import { env } from '@/env'
 
-const TOKEN_KEY = 'access_token'
-const REFRESH_TOKEN_KEY = 'refresh_token'
-
-export const getToken = () => localStorage.getItem(TOKEN_KEY)
-export const getRefreshToken = () => localStorage.getItem(REFRESH_TOKEN_KEY)
-
-export const setTokens = (accessToken: string, refreshToken: string) => {
-  localStorage.setItem(TOKEN_KEY, accessToken)
-  localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken)
+function redirectToLogin() {
+  if (window.location.pathname.startsWith('/auth/')) return
+  const redirectTo = window.location.pathname + window.location.search
+  window.location.replace(
+    `/auth/login?redirect_to=${encodeURIComponent(redirectTo)}`,
+  )
 }
 
-export const clearTokens = () => {
-  localStorage.removeItem(TOKEN_KEY)
-  localStorage.removeItem(REFRESH_TOKEN_KEY)
-}
+let isRefreshing = false
+let refreshQueue: Array<{
+  resolve: () => void
+  reject: (err: unknown) => void
+}> = []
 
-function authRequestInterceptor(config: InternalAxiosRequestConfig) {
-  if (config.headers) {
-    config.headers.Accept = 'application/json'
-    const token = getToken()
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
-    }
-  }
-  return config
+function processQueue(error: unknown) {
+  refreshQueue.forEach(({ resolve, reject }) =>
+    error ? reject(error) : resolve(),
+  )
+  refreshQueue = []
 }
 
 export const api = Axios.create({
   baseURL: env.API_URL,
+  withCredentials: true,
 })
 
-api.interceptors.request.use(authRequestInterceptor)
+api.interceptors.request.use((config) => {
+  config.headers.Accept = 'application/json'
+  return config
+})
+
 api.interceptors.response.use(
-  (response) => {
-    return response.data
-  },
-  (error) => {
-    const message = error.response?.data?.message || error.message
+  (response) => response.data,
+  async (error: AxiosError) => {
+    const original = error.config as InternalAxiosRequestConfig & {
+      _retry?: boolean
+    }
+    const message =
+      (error.response?.data as { message?: string })?.message || error.message
 
     if (error.response?.status !== 401) {
       toast.error(message)
+      return Promise.reject(error)
     }
 
-    if (error.response?.status === 401) {
-      clearTokens()
-      const searchParams = new URLSearchParams()
-      const redirectTo = window.location.pathname + window.location.search
-      if (redirectTo && redirectTo !== '/auth/login') {
-        searchParams.set('redirect_to', redirectTo)
-      }
-      const search = searchParams.toString()
-      window.location.replace(`/auth/login${search ? `?${search}` : ''}`)
+    // Don't retry if this request already retried or if the refresh call itself failed.
+    if (original._retry || original.url === '/api/auth/refresh') {
+      redirectToLogin()
+      return Promise.reject(error)
     }
 
-    return Promise.reject(error)
+    // Queue concurrent 401s while a refresh is in flight.
+    if (isRefreshing) {
+      return new Promise<void>((resolve, reject) => {
+        refreshQueue.push({ resolve, reject })
+      }).then(() => api(original))
+    }
+
+    original._retry = true
+    isRefreshing = true
+
+    try {
+      await api.post('/api/auth/refresh')
+      processQueue(null)
+      return api(original)
+    } catch (refreshError) {
+      processQueue(refreshError)
+      redirectToLogin()
+      return Promise.reject(refreshError)
+    } finally {
+      isRefreshing = false
+    }
   },
 )

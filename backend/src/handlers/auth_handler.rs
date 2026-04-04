@@ -1,12 +1,16 @@
-use axum::{extract::State, http::StatusCode};
+use axum::{
+    extract::State,
+    http::{StatusCode, header::SET_COOKIE, request::Parts},
+    response::AppendHeaders,
+};
 use validator::Validate;
 
 use crate::{
     AppState,
-    auth::{jwt, password},
+    auth::{cookie, jwt, password},
     errors::AppError,
     extract::Json,
-    models::user::{LoginRequest, RefreshRequest, RegisterRequest, TokenResponse},
+    models::user::{LoginRequest, RegisterRequest},
     repositories::user_repository,
 };
 
@@ -16,10 +20,10 @@ use crate::{
     path = "/api/auth/register",
     tag = "Auth",
     summary = "Register a new user",
-    description = "Creates a new user account and returns an access/refresh token pair.",
+    description = "Creates a new user account and sets access/refresh token cookies.",
     request_body = RegisterRequest,
     responses(
-        (status = 201, description = "User registered successfully", body = TokenResponse),
+        (status = 201, description = "User registered successfully"),
         (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
         (status = 409, description = "Email already taken", body = crate::errors::ErrorResponse),
     )
@@ -27,7 +31,13 @@ use crate::{
 pub async fn register(
     State(state): State<AppState>,
     Json(input): Json<RegisterRequest>,
-) -> Result<(StatusCode, Json<TokenResponse>), AppError> {
+) -> Result<
+    (
+        StatusCode,
+        AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]>,
+    ),
+    AppError,
+> {
     input.validate()?;
 
     if user_repository::exists_by_email(&state.db, &input.email).await? {
@@ -41,8 +51,7 @@ pub async fn register(
         user_repository::create(&state.db, &input.email, &password_hash, &input.display_name)
             .await?;
 
-    let token_response = create_token_pair(&state, user.id)?;
-    Ok((StatusCode::CREATED, Json(token_response)))
+    Ok((StatusCode::CREATED, build_cookie_headers(&state, user.id)?))
 }
 
 /// `POST /auth/login`
@@ -54,10 +63,10 @@ pub async fn register(
     path = "/api/auth/login",
     tag = "Auth",
     summary = "Log in",
-    description = "Authenticates with email and password, returns an access/refresh token pair.",
+    description = "Authenticates with email and password and sets access/refresh token cookies.",
     request_body = LoginRequest,
     responses(
-        (status = 200, description = "Login successful", body = TokenResponse),
+        (status = 200, description = "Login successful"),
         (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
         (status = 401, description = "Invalid credentials", body = crate::errors::ErrorResponse),
     )
@@ -65,7 +74,7 @@ pub async fn register(
 pub async fn login(
     State(state): State<AppState>,
     Json(input): Json<LoginRequest>,
-) -> Result<Json<TokenResponse>, AppError> {
+) -> Result<AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]>, AppError> {
     input.validate()?;
 
     let user = user_repository::find_by_email(&state.db, &input.email)
@@ -76,42 +85,68 @@ pub async fn login(
         return Err(AppError::Unauthorized);
     }
 
-    let token_response = create_token_pair(&state, user.id)?;
-    Ok(Json(token_response))
+    build_cookie_headers(&state, user.id)
 }
 
 /// `POST /auth/refresh`
 ///
-/// Validates the refresh token signature and issues a new token pair.
-/// Invalidation is handled externally (Redis).
+/// Reads the refresh token from the `refresh_token` cookie, validates it, and
+/// issues a new token pair as httpOnly cookies.
 #[utoipa::path(
     post,
     path = "/api/auth/refresh",
     tag = "Auth",
     summary = "Refresh tokens",
-    description = "Validates a refresh token and issues a new access/refresh token pair.",
-    request_body = RefreshRequest,
+    description = "Validates the refresh token cookie and issues a new access/refresh token pair.",
     responses(
-        (status = 200, description = "Tokens refreshed", body = TokenResponse),
+        (status = 200, description = "Tokens refreshed"),
         (status = 401, description = "Invalid or expired refresh token", body = crate::errors::ErrorResponse),
     )
 )]
 pub async fn refresh(
     State(state): State<AppState>,
-    Json(input): Json<RefreshRequest>,
-) -> Result<Json<TokenResponse>, AppError> {
-    let claims = jwt::validate_token(&input.refresh_token, &state.config.jwt_secret)?;
+    parts: Parts,
+) -> Result<AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]>, AppError> {
+    let refresh_token =
+        cookie::extract_cookie(&parts, "refresh_token").ok_or(AppError::Unauthorized)?;
+
+    let claims = jwt::validate_token(&refresh_token, &state.config.jwt_secret)?;
 
     if claims.token_type != "refresh" {
         return Err(AppError::Unauthorized);
     }
 
     let user_id = claims.sub.parse().map_err(|_| AppError::Unauthorized)?;
-    let token_response = create_token_pair(&state, user_id)?;
-    Ok(Json(token_response))
+    build_cookie_headers(&state, user_id)
 }
 
-fn create_token_pair(state: &AppState, user_id: uuid::Uuid) -> Result<TokenResponse, AppError> {
+/// `POST /auth/logout`
+///
+/// Clears the access and refresh token cookies.
+#[utoipa::path(
+    post,
+    path = "/api/auth/logout",
+    tag = "Auth",
+    summary = "Log out",
+    description = "Clears the access and refresh token cookies.",
+    responses(
+        (status = 200, description = "Logged out"),
+    )
+)]
+pub async fn logout() -> AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]> {
+    AppendHeaders([
+        (SET_COOKIE, cookie::clear_cookie("access_token", "/")),
+        (
+            SET_COOKIE,
+            cookie::clear_cookie("refresh_token", "/api/auth/refresh"),
+        ),
+    ])
+}
+
+fn build_cookie_headers(
+    state: &AppState,
+    user_id: uuid::Uuid,
+) -> Result<AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]>, AppError> {
     let access_token = jwt::create_access_token(
         user_id,
         &state.config.jwt_secret,
@@ -122,8 +157,24 @@ fn create_token_pair(state: &AppState, user_id: uuid::Uuid) -> Result<TokenRespo
         &state.config.jwt_secret,
         state.config.jwt_refresh_expiry_secs,
     )?;
-    Ok(TokenResponse {
-        access_token,
-        refresh_token,
-    })
+    Ok(AppendHeaders([
+        (
+            SET_COOKIE,
+            cookie::build_cookie(
+                "access_token",
+                &access_token,
+                state.config.jwt_access_expiry_secs,
+                "/",
+            ),
+        ),
+        (
+            SET_COOKIE,
+            cookie::build_cookie(
+                "refresh_token",
+                &refresh_token,
+                state.config.jwt_refresh_expiry_secs,
+                "/api/auth/refresh",
+            ),
+        ),
+    ]))
 }

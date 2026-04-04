@@ -1,16 +1,15 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 
-import { api, setTokens } from '@/lib/api-client'
+import { api } from '@/lib/api-client'
 import type { MutationConfig } from '@/lib/react-query'
 
 import type { LoginInput } from '../schemas'
-import type { AuthResponse, User } from '../types'
+import type { User } from '../types'
 import { getUser } from './get-user'
 import { userQueryKey } from './query-keys'
 
 async function login(data: LoginInput): Promise<User | null> {
-  const response: AuthResponse = await api.post('/api/auth/login', data)
-  setTokens(response.access_token, response.refresh_token)
+  await api.post('/api/auth/login', data)
   return getUser()
 }
 
