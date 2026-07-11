@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Serialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Comment {
     pub id: Uuid,
     pub issue_id: Uuid,
@@ -15,7 +14,7 @@ pub struct Comment {
 }
 
 /// Request body for `POST /api/issues/:issue_id/comments`.
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateCommentRequest {
     #[validate(length(
         min = 1,

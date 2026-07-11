@@ -11,15 +11,13 @@ use tower_http::{
     trace::TraceLayer,
 };
 use tracing::Span;
-use utoipa::OpenApi;
-use utoipa_swagger_ui::SwaggerUi;
+
 
 use crate::{
     AppState,
     handlers::{
         auth_handler, comment_handler, health_handler, issue_handler, project_handler, user_handler,
     },
-    openapi::ApiDoc,
 };
 
 /// Build the full application router with all routes and middleware.
@@ -59,7 +57,6 @@ pub fn build(state: AppState) -> Router {
         });
 
     Router::new()
-        .merge(SwaggerUi::new("/docs").url("/openapi.json", ApiDoc::openapi()))
         .nest("/api", api_routes())
         .with_state(state)
         .layer(cors)

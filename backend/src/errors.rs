@@ -7,12 +7,10 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use utoipa::ToSchema;
 use validator::ValidationErrors;
 
-/// Standard error response shape shared by OpenAPI docs (`ToSchema`) and runtime
-/// serialization in `AppError::into_response`, keeping both in sync.
-#[derive(Serialize, ToSchema)]
+/// Standard error response shape used in `AppError::into_response`.
+#[derive(Serialize)]
 pub struct ErrorResponse {
     /// Human-readable error message.
     pub message: String,

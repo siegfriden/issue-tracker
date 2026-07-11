@@ -4,7 +4,6 @@ pub mod project;
 pub mod user;
 
 use serde::{Deserialize, Serialize};
-use utoipa::IntoParams;
 
 /// Serde deserializer for `Option<Option<T>>` fields (nullable PATCH columns).
 ///
@@ -46,8 +45,7 @@ pub(super) mod non_nullable {
 ///
 /// Both fields are optional; defaults are applied when absent.
 /// `per_page` is capped at 100 to prevent runaway queries.
-#[derive(Debug, Deserialize, IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(Debug, Deserialize)]
 pub struct PaginationParams {
     pub page: Option<i64>,
     pub limit: Option<i64>,
@@ -87,41 +85,3 @@ impl<T: Serialize> PaginatedResponse<T> {
     }
 }
 
-/// Concrete paginated response schemas for OpenAPI documentation.
-/// These mirror `PaginatedResponse<T>` for specific entity types.
-pub mod paginated_schemas {
-    use serde::Serialize;
-    use utoipa::ToSchema;
-
-    #[derive(Serialize, ToSchema)]
-    pub struct PaginatedProjectResponse {
-        pub data: Vec<super::project::Project>,
-        pub total: i64,
-        pub page: i64,
-        pub limit: i64,
-    }
-
-    #[derive(Serialize, ToSchema)]
-    pub struct PaginatedProjectMemberResponse {
-        pub data: Vec<super::project::ProjectMember>,
-        pub total: i64,
-        pub page: i64,
-        pub limit: i64,
-    }
-
-    #[derive(Serialize, ToSchema)]
-    pub struct PaginatedIssueResponse {
-        pub data: Vec<super::issue::Issue>,
-        pub total: i64,
-        pub page: i64,
-        pub limit: i64,
-    }
-
-    #[derive(Serialize, ToSchema)]
-    pub struct PaginatedCommentResponse {
-        pub data: Vec<super::comment::Comment>,
-        pub total: i64,
-        pub page: i64,
-        pub limit: i64,
-    }
-}

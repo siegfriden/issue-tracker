@@ -1,10 +1,9 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::ToSchema;
 use uuid::Uuid;
 use validator::Validate;
 
-#[derive(Debug, Serialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Project {
     pub id: Uuid,
     pub name: String,
@@ -17,7 +16,7 @@ pub struct Project {
 }
 
 /// Request body for `POST /api/projects`.
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateProjectRequest {
     #[validate(length(
         min = 1,
@@ -44,18 +43,16 @@ pub struct CreateProjectRequest {
         message = "Description must be at most 10,000 characters."
     ))]
     #[serde(default)]
-    #[schema(default = "")]
     pub description: String,
 
     #[serde(default = "default_true")]
-    #[schema(default = true)]
     pub is_public: bool,
 }
 
 /// Request body for `PATCH /api/projects/:project_id`.
 ///
 /// All fields optional. Omitted fields are left unchanged.
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateProjectRequest {
     #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
@@ -97,7 +94,7 @@ fn validate_identifier(value: &str) -> Result<(), validator::ValidationError> {
     }
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type, ToSchema)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, sqlx::Type)]
 #[sqlx(type_name = "text", rename_all = "lowercase")]
 #[serde(rename_all = "lowercase")]
 pub enum MemberRole {
@@ -106,7 +103,7 @@ pub enum MemberRole {
     Viewer,
 }
 
-#[derive(Debug, Serialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct ProjectMember {
     pub project_id: Uuid,
     pub user_id: Uuid,
@@ -144,7 +141,7 @@ impl Project {
 }
 
 /// Request body for `POST /api/projects/:project_id/members`.
-#[derive(Debug, Deserialize, ToSchema)]
+#[derive(Debug, Deserialize)]
 pub struct AddMemberRequest {
     pub user_id: Uuid,
     pub role: MemberRole,

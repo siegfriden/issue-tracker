@@ -17,25 +17,6 @@ use crate::{
 /// `GET /api/projects/:project_id/issues`
 ///
 /// Lists issues for a project with optional filters and pagination.
-#[utoipa::path(
-    get,
-    path = "/api/projects/{project_id}/issues",
-    tag = "Issues",
-    summary = "List issues",
-    description = "Lists issues for a project with optional status, priority, and assignee filters.",
-    params(
-        ("project_id" = Uuid, Path, description = "Project ID"),
-        IssueFilters,
-        PaginationParams,
-    ),
-    responses(
-        (status = 200, description = "Paginated list of issues", body = crate::models::paginated_schemas::PaginatedIssueResponse),
-        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
-        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
-        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
-    ),
-    security(("bearer" = [])),
-)]
 pub async fn list_issues(
     State(state): State<AppState>,
     auth: Auth,
@@ -60,23 +41,6 @@ pub async fn list_issues(
 }
 
 /// `POST /api/projects/:project_id/issues`
-#[utoipa::path(
-    post,
-    path = "/api/projects/{project_id}/issues",
-    tag = "Issues",
-    summary = "Create issue",
-    description = "Creates a new issue in a project. Requires write access (owner, admin, or member role).",
-    params(("project_id" = Uuid, Path, description = "Project ID")),
-    request_body = CreateIssueRequest,
-    responses(
-        (status = 201, description = "Issue created", body = Issue),
-        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
-        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
-        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
-        (status = 404, description = "Project not found", body = crate::errors::ErrorResponse),
-    ),
-    security(("bearer" = [])),
-)]
 pub async fn create_issue(
     State(state): State<AppState>,
     auth: Auth,
@@ -103,21 +67,6 @@ pub async fn create_issue(
 }
 
 /// `GET /api/issues/:issue_id`
-#[utoipa::path(
-    get,
-    path = "/api/issues/{issue_id}",
-    tag = "Issues",
-    summary = "Get issue",
-    description = "Returns a single issue by ID. Requires visibility access to the parent project.",
-    params(("issue_id" = Uuid, Path, description = "Issue ID")),
-    responses(
-        (status = 200, description = "Issue details", body = Issue),
-        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
-        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
-        (status = 404, description = "Issue not found", body = crate::errors::ErrorResponse),
-    ),
-    security(("bearer" = [])),
-)]
 pub async fn get_issue(
     State(state): State<AppState>,
     auth: Auth,
@@ -141,23 +90,6 @@ pub async fn get_issue(
 }
 
 /// `PATCH /api/issues/:issue_id`
-#[utoipa::path(
-    patch,
-    path = "/api/issues/{issue_id}",
-    tag = "Issues",
-    summary = "Update issue",
-    description = "Updates an issue's fields. Only supplied fields are changed. Requires write access.",
-    params(("issue_id" = Uuid, Path, description = "Issue ID")),
-    request_body = UpdateIssueRequest,
-    responses(
-        (status = 200, description = "Issue updated", body = Issue),
-        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
-        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
-        (status = 403, description = "Access denied", body = crate::errors::ErrorResponse),
-        (status = 404, description = "Issue not found", body = crate::errors::ErrorResponse),
-    ),
-    security(("bearer" = [])),
-)]
 pub async fn update_issue(
     State(state): State<AppState>,
     auth: Auth,
@@ -190,21 +122,6 @@ pub async fn update_issue(
 /// `DELETE /api/issues/:issue_id`
 ///
 /// Only the issue author can delete an issue.
-#[utoipa::path(
-    delete,
-    path = "/api/issues/{issue_id}",
-    tag = "Issues",
-    summary = "Delete issue",
-    description = "Deletes an issue. Only the issue author can perform this action.",
-    params(("issue_id" = Uuid, Path, description = "Issue ID")),
-    responses(
-        (status = 204, description = "Issue deleted"),
-        (status = 401, description = "Not authenticated", body = crate::errors::ErrorResponse),
-        (status = 403, description = "Access denied (not author)", body = crate::errors::ErrorResponse),
-        (status = 404, description = "Issue not found", body = crate::errors::ErrorResponse),
-    ),
-    security(("bearer" = [])),
-)]
 pub async fn delete_issue(
     State(state): State<AppState>,
     auth: Auth,

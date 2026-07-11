@@ -15,19 +15,6 @@ use crate::{
 };
 
 /// `POST /auth/register`
-#[utoipa::path(
-    post,
-    path = "/api/auth/register",
-    tag = "Auth",
-    summary = "Register a new user",
-    description = "Creates a new user account and sets access/refresh token cookies.",
-    request_body = RegisterRequest,
-    responses(
-        (status = 201, description = "User registered successfully"),
-        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
-        (status = 409, description = "Email already taken", body = crate::errors::ErrorResponse),
-    )
-)]
 pub async fn register(
     State(state): State<AppState>,
     Json(input): Json<RegisterRequest>,
@@ -58,19 +45,6 @@ pub async fn register(
 ///
 /// Both "email not found" and "wrong password" return `401` — intentionally
 /// indistinct to prevent username enumeration.
-#[utoipa::path(
-    post,
-    path = "/api/auth/login",
-    tag = "Auth",
-    summary = "Log in",
-    description = "Authenticates with email and password and sets access/refresh token cookies.",
-    request_body = LoginRequest,
-    responses(
-        (status = 200, description = "Login successful"),
-        (status = 400, description = "Validation error", body = crate::errors::ErrorResponse),
-        (status = 401, description = "Invalid credentials", body = crate::errors::ErrorResponse),
-    )
-)]
 pub async fn login(
     State(state): State<AppState>,
     Json(input): Json<LoginRequest>,
@@ -92,17 +66,6 @@ pub async fn login(
 ///
 /// Reads the refresh token from the `refresh_token` cookie, validates it, and
 /// issues a new token pair as httpOnly cookies.
-#[utoipa::path(
-    post,
-    path = "/api/auth/refresh",
-    tag = "Auth",
-    summary = "Refresh tokens",
-    description = "Validates the refresh token cookie and issues a new access/refresh token pair.",
-    responses(
-        (status = 200, description = "Tokens refreshed"),
-        (status = 401, description = "Invalid or expired refresh token", body = crate::errors::ErrorResponse),
-    )
-)]
 pub async fn refresh(
     State(state): State<AppState>,
     parts: Parts,
@@ -123,16 +86,6 @@ pub async fn refresh(
 /// `POST /auth/logout`
 ///
 /// Clears the access and refresh token cookies.
-#[utoipa::path(
-    post,
-    path = "/api/auth/logout",
-    tag = "Auth",
-    summary = "Log out",
-    description = "Clears the access and refresh token cookies.",
-    responses(
-        (status = 200, description = "Logged out"),
-    )
-)]
 pub async fn logout() -> AppendHeaders<[(axum::http::HeaderName, axum::http::HeaderValue); 2]> {
     AppendHeaders([
         (SET_COOKIE, cookie::clear_cookie("access_token", "/")),

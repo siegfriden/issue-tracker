@@ -1,10 +1,9 @@
 use chrono::{DateTime, NaiveDate, Utc};
 use serde::{Deserialize, Serialize};
-use utoipa::{IntoParams, ToSchema};
 use uuid::Uuid;
 use validator::{Validate, ValidationError};
 
-#[derive(Debug, Serialize, sqlx::FromRow, ToSchema)]
+#[derive(Debug, Serialize, sqlx::FromRow)]
 pub struct Issue {
     pub id: Uuid,
     pub project_id: Uuid,
@@ -21,8 +20,7 @@ pub struct Issue {
 }
 
 /// Optional filters for `GET /api/projects/:project_id/issues`.
-#[derive(Debug, Deserialize, IntoParams)]
-#[into_params(parameter_in = Query)]
+#[derive(Debug, Deserialize)]
 pub struct IssueFilters {
     pub status: Option<String>,
     pub priority: Option<String>,
@@ -30,7 +28,7 @@ pub struct IssueFilters {
 }
 
 /// Request body for `POST /api/projects/:project_id/issues`.
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct CreateIssueRequest {
     #[validate(length(
         min = 1,
@@ -44,24 +42,20 @@ pub struct CreateIssueRequest {
         message = "Description must be at most 10,000 characters."
     ))]
     #[serde(default)]
-    #[schema(default = "")]
     pub description: String,
 
     pub assignee_id: Option<Uuid>,
 
     #[validate(custom(function = "validate_issue_type"))]
     #[serde(default = "default_issue_type")]
-    #[schema(default = "task")]
     pub issue_type: String,
 
     #[validate(custom(function = "validate_status"))]
     #[serde(default = "default_status")]
-    #[schema(default = "open")]
     pub status: String,
 
     #[validate(custom(function = "validate_priority"))]
     #[serde(default = "default_priority")]
-    #[schema(default = "normal")]
     pub priority: String,
 
     pub due_date: Option<NaiveDate>,
@@ -70,7 +64,7 @@ pub struct CreateIssueRequest {
 /// Request body for `PATCH /api/issues/:issue_id`.
 ///
 /// All fields are optional — only provided fields are updated.
-#[derive(Debug, Deserialize, Validate, ToSchema)]
+#[derive(Debug, Deserialize, Validate)]
 pub struct UpdateIssueRequest {
     #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
     #[validate(length(
@@ -88,7 +82,6 @@ pub struct UpdateIssueRequest {
     pub description: Option<String>,
 
     #[serde(default, deserialize_with = "super::nullable::deserialize")]
-    #[schema(value_type = Option<Uuid>, nullable)]
     pub assignee_id: Option<Option<Uuid>>,
 
     #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
@@ -104,7 +97,6 @@ pub struct UpdateIssueRequest {
     pub priority: Option<String>,
 
     #[serde(default, deserialize_with = "super::nullable::deserialize")]
-    #[schema(value_type = Option<NaiveDate>, nullable)]
     pub due_date: Option<Option<NaiveDate>>,
 }
 
