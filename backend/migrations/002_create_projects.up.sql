@@ -3,7 +3,7 @@ CREATE TABLE projects (
     name        TEXT        NOT NULL,
     identifier  TEXT        NOT NULL UNIQUE,
     description TEXT        NOT NULL DEFAULT '',
-    is_public   BOOLEAN     NOT NULL DEFAULT true,
+    is_public   BOOLEAN     NOT NULL DEFAULT false,
     owner_id    UUID        NOT NULL REFERENCES users(id),
     created_at  TIMESTAMPTZ NOT NULL DEFAULT now(),
     updated_at  TIMESTAMPTZ NOT NULL DEFAULT now()
