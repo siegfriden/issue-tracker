@@ -2,7 +2,6 @@ use std::collections::HashMap;
 
 use axum::{
     Json,
-    extract::rejection::{JsonRejection, PathRejection, QueryRejection},
     http::StatusCode,
     response::{IntoResponse, Response},
 };
@@ -24,9 +23,6 @@ pub struct ErrorResponse {
 /// response — no error-mapping boilerplate needed in handlers.
 #[derive(Debug)]
 pub enum AppError {
-    /// 400 — malformed request that doesn't fit the validation framework.
-    BadRequest(String),
-
     /// 400 — field-level validation failures from the `validator` crate.
     /// The inner map is `{ field: [messages] }` and is included in the
     /// response body under the `data` key.
@@ -60,11 +56,6 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message, data) = match self {
-            AppError::BadRequest(detail) => (
-                StatusCode::BAD_REQUEST,
-                "Invalid request parameters.".to_string(),
-                Some(serde_json::json!(detail)),
-            ),
             AppError::Validation(fields) => (
                 StatusCode::BAD_REQUEST,
                 "Missing or invalid fields. Please check your input and try again.".to_string(),
@@ -114,30 +105,6 @@ impl From<ValidationErrors> for AppError {
             })
             .collect();
         AppError::Validation(data)
-    }
-}
-
-/// Converts Axum's [`JsonRejection`] into [`AppError::BadRequest`].
-/// Used by the `#[derive(FromRequest)]` macro on [`crate::extractors::Json`].
-impl From<JsonRejection> for AppError {
-    fn from(rejection: JsonRejection) -> Self {
-        AppError::BadRequest(rejection.body_text())
-    }
-}
-
-/// Converts Axum's [`PathRejection`] into [`AppError::BadRequest`].
-/// Used by the `#[derive(FromRequestParts)]` macro on [`crate::extractors::Path`].
-impl From<PathRejection> for AppError {
-    fn from(rejection: PathRejection) -> Self {
-        AppError::BadRequest(rejection.body_text())
-    }
-}
-
-/// Converts Axum's [`QueryRejection`] into [`AppError::BadRequest`].
-/// Used by the `#[derive(FromRequestParts)]` macro on [`crate::extractors::Query`].
-impl From<QueryRejection> for AppError {
-    fn from(rejection: QueryRejection) -> Self {
-        AppError::BadRequest(rejection.body_text())
     }
 }
 

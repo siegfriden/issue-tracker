@@ -1,4 +1,5 @@
 use axum::{
+    Json,
     extract::State,
     http::{StatusCode, header::SET_COOKIE, request::Parts},
     response::AppendHeaders,
@@ -9,7 +10,6 @@ use crate::{
     AppState,
     auth::{cookie, jwt, password},
     errors::AppError,
-    extract::Json,
     models::user::{LoginRequest, RegisterRequest},
     repositories::user_repository,
 };

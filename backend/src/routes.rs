@@ -1,20 +1,24 @@
 use std::time::Duration;
 
-use axum::http::header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE};
 use axum::{
-    Router,
-    http::{HeaderValue, Request, Response},
+    Json, Router,
+    body::to_bytes,
+    http::{
+        HeaderValue, Method, Request, StatusCode,
+        header::{ACCEPT, AUTHORIZATION, CONTENT_TYPE},
+    },
+    middleware::map_response,
+    response::{IntoResponse, Response},
     routing::{delete, get, post},
 };
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
     trace::TraceLayer,
 };
-use tracing::Span;
-
 
 use crate::{
     AppState,
+    errors::ErrorResponse,
     handlers::{
         auth_handler, comment_handler, health_handler, issue_handler, project_handler, user_handler,
     },
@@ -29,12 +33,7 @@ pub fn build(state: AppState) -> Router {
                 || origin.as_bytes().starts_with(b"http://127.0.0.1:")
                 || origin.as_bytes() == b"http://127.0.0.1"
         }))
-        .allow_methods([
-            axum::http::Method::GET,
-            axum::http::Method::POST,
-            axum::http::Method::PATCH,
-            axum::http::Method::DELETE,
-        ])
+        .allow_methods([Method::GET, Method::POST, Method::PATCH, Method::DELETE])
         .allow_headers([ACCEPT, AUTHORIZATION, CONTENT_TYPE])
         .allow_credentials(true);
 
@@ -49,7 +48,7 @@ pub fn build(state: AppState) -> Router {
         })
         .on_failure(()) // disable failure event logs
         .on_request(()) // disable default request event logs
-        .on_response(|res: &Response<_>, latency: Duration, _span: &Span| {
+        .on_response(|res: &Response, latency: Duration, _span: &tracing::Span| {
             tracing::info!(
                 status = res.status().as_u16(),
                 latency_ms = latency.as_millis(),
@@ -61,6 +60,7 @@ pub fn build(state: AppState) -> Router {
         .with_state(state)
         .layer(cors)
         .layer(trace)
+        .layer(map_response(format_extractor_errors))
 }
 
 fn api_routes() -> Router<AppState> {
@@ -132,4 +132,42 @@ fn issue_routes() -> Router<AppState> {
 
 fn comment_routes() -> Router<AppState> {
     Router::new().route("/{comment_id}", delete(comment_handler::delete_comment))
+}
+
+/// Converts plain-text extractor rejections into the app's standard JSON error shape.
+///
+/// Axum's built-in extractors (`Json`, `Path`, `Query`) return `text/plain` bodies when
+/// they fail (e.g. an invalid UUID in a path segment, or a malformed JSON body). Without
+/// this middleware those responses would bypass [`AppError::into_response`] and reach the
+/// client as plain text, breaking the `{ "message": "...", "data": ... }` contract.
+///
+/// The middleware is intentionally narrow: it only rewraps responses that are **both**
+/// a 4xx client error **and** have a `text/plain` content-type, leaving all other
+/// responses (including `AppError`-produced JSON and successful responses) untouched.
+async fn format_extractor_errors(res: Response) -> Response {
+    let status = res.status();
+    let is_plain_text = res
+        .headers()
+        .get(CONTENT_TYPE)
+        .and_then(|val| val.to_str().ok())
+        .is_some_and(|val| val.starts_with("text/plain"));
+
+    if !status.is_client_error() || !is_plain_text {
+        return res;
+    }
+
+    let Ok(body_bytes) = to_bytes(res.into_body(), usize::MAX).await else {
+        return StatusCode::INTERNAL_SERVER_ERROR.into_response();
+    };
+
+    let body_text = String::from_utf8_lossy(&body_bytes).into_owned();
+
+    (
+        status,
+        Json(ErrorResponse {
+            message: "Invalid request parameters.".to_string(),
+            data: Some(serde_json::Value::String(body_text)),
+        }),
+    )
+        .into_response()
 }
