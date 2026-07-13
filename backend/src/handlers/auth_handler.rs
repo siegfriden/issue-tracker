@@ -4,13 +4,13 @@ use axum::{
     http::{StatusCode, header::SET_COOKIE, request::Parts},
     response::AppendHeaders,
 };
-use validator::Validate;
+use uuid::Uuid;
 
 use crate::{
     AppState,
     auth::{cookie, jwt, password},
     errors::AppError,
-    models::user::{LoginRequest, RegisterRequest},
+    models::user::{LoginRequest, RegisterRequest, User},
     repositories::user_repository,
 };
 
@@ -34,10 +34,18 @@ pub async fn register(
     }
 
     let password_hash = password::hash(&input.password)?;
-    let user =
-        user_repository::create(&state.db, &input.email, &password_hash, &input.display_name)
-            .await?;
 
+    let user = User {
+        id: Uuid::new_v4(),
+        email: input.email.clone(),
+        password_hash,
+        display_name: input.display_name.clone(),
+        created_at: chrono::Utc::now(),
+        updated_at: chrono::Utc::now(),
+    };
+    user.validate()?;
+
+    user_repository::create(&state.db, &user).await?;
     Ok((StatusCode::CREATED, build_cookie_headers(&state, user.id)?))
 }
 

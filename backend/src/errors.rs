@@ -1,12 +1,11 @@
-use std::collections::HashMap;
-
 use axum::{
     Json,
     http::StatusCode,
     response::{IntoResponse, Response},
 };
 use serde::Serialize;
-use validator::ValidationErrors;
+
+use crate::validation::ValidationErrors;
 
 /// Standard error response shape used in `AppError::into_response`.
 #[derive(Serialize)]
@@ -23,10 +22,10 @@ pub struct ErrorResponse {
 /// response — no error-mapping boilerplate needed in handlers.
 #[derive(Debug)]
 pub enum AppError {
-    /// 400 — field-level validation failures from the `validator` crate.
+    /// 400 — field-level validation failures.
     /// The inner map is `{ field: [messages] }` and is included in the
     /// response body under the `data` key.
-    Validation(HashMap<String, Vec<String>>),
+    Validation(ValidationErrors),
 
     /// 401 — missing, expired, or invalid credentials.
     Unauthorized,
@@ -56,10 +55,10 @@ pub enum AppError {
 impl IntoResponse for AppError {
     fn into_response(self) -> Response {
         let (status, message, data) = match self {
-            AppError::Validation(fields) => (
+            AppError::Validation(errors) => (
                 StatusCode::BAD_REQUEST,
-                "Missing or invalid fields. Please check your input and try again.".to_string(),
-                Some(serde_json::json!(fields)),
+                "Validation failed.".to_string(),
+                Some(serde_json::json!(errors)),
             ),
             AppError::Unauthorized => (
                 StatusCode::UNAUTHORIZED,
@@ -84,27 +83,10 @@ impl IntoResponse for AppError {
     }
 }
 
-/// Converts `validator::ValidationErrors` into `AppError::Validation`,
-/// flattening each field's errors into a list of human-readable strings.
+/// Converts `ValidationErrors` into `AppError::Validation`.
 impl From<ValidationErrors> for AppError {
     fn from(errors: ValidationErrors) -> Self {
-        let data = errors
-            .field_errors()
-            .iter()
-            .map(|(field, errs)| {
-                let messages = errs
-                    .iter()
-                    .map(|e| {
-                        e.message
-                            .as_ref()
-                            .map(|m| m.to_string())
-                            .unwrap_or_else(|| format!("invalid value for '{}'", e.code))
-                    })
-                    .collect();
-                (field.to_string(), messages)
-            })
-            .collect();
-        AppError::Validation(data)
+        AppError::Validation(errors)
     }
 }
 

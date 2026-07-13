@@ -1,7 +1,8 @@
+use super::PatchField;
+use crate::validation::{ValidationErrors, Validator, rules};
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use validator::Validate;
 
 /// Full database row. `password_hash` is excluded from serialization — it
 /// must never appear in an API response.
@@ -13,6 +14,23 @@ pub struct User {
     pub display_name: String,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+}
+
+impl User {
+    pub fn apply(mut self, input: &UserInput) -> Self {
+        if let PatchField::Value(ref v) = input.display_name {
+            self.display_name = v.clone();
+        }
+        self
+    }
+
+    pub fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut v = Validator::new();
+        v.field("email", &self.email).check(rules::email);
+        v.field("display_name", &self.display_name)
+            .check(rules::max_len(100));
+        v.finish()
+    }
 }
 
 /// Safe view of a user — everything except the password hash.
@@ -38,46 +56,60 @@ impl From<User> for UserResponse {
 }
 
 /// Request body for `POST /api/auth/register`.
-#[derive(Debug, Deserialize, Validate)]
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
 pub struct RegisterRequest {
-    #[validate(email(message = "Please enter a valid email address."))]
     pub email: String,
-
-    #[validate(length(min = 8, message = "Password must be at least 8 characters long."))]
     pub password: String,
-
-    #[validate(length(
-        min = 1,
-        max = 100,
-        message = "Display name must be between 1 and 100 characters."
-    ))]
     pub display_name: String,
 }
 
-/// Request body for `POST /api/auth/login`.
-#[derive(Debug, Deserialize, Validate)]
-pub struct LoginRequest {
-    #[validate(email(message = "Please enter a valid email address."))]
-    pub email: String,
+impl RegisterRequest {
+    pub fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut v = Validator::new();
+        v.field("email", &self.email).check(rules::email);
+        v.field("display_name", &self.display_name)
+            .check(rules::max_len(100));
+        v.field("password", &self.password)
+            .check(rules::password_strength);
+        v.finish()
+    }
+}
 
-    #[validate(length(min = 1, message = "Password is required."))]
+/// Request body for `POST /api/auth/login`.
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+pub struct LoginRequest {
+    pub email: String,
     pub password: String,
+}
+
+impl LoginRequest {
+    pub fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut v = Validator::new();
+        v.field("email", &self.email).check(rules::not_empty);
+        v.field("password", &self.password).check(rules::not_empty);
+        v.finish()
+    }
 }
 
 /// Request body for `PATCH /api/users/me`.
 ///
 /// All fields are optional — only provided fields are updated.
-#[derive(Debug, Deserialize, Validate)]
-pub struct UpdateUserRequest {
-    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
-    #[validate(length(
-        min = 1,
-        max = 100,
-        message = "Display name must be between 1 and 100 characters."
-    ))]
-    pub display_name: Option<String>,
+#[derive(Debug, Deserialize, Default)]
+#[serde(default)]
+pub struct UserInput {
+    pub display_name: PatchField<String>,
+    pub new_password: PatchField<String>,
+}
 
-    #[serde(default, deserialize_with = "super::non_nullable::deserialize")]
-    #[validate(length(min = 8, message = "New password must be at least 8 characters long."))]
-    pub new_password: Option<String>,
+impl UserInput {
+    pub fn validate(&self) -> Result<(), ValidationErrors> {
+        let mut v = Validator::new();
+        v.field("display_name", &self.display_name)
+            .check(rules::max_len(100));
+        v.field("new_password", &self.new_password)
+            .check(rules::password_strength);
+        v.finish()
+    }
 }

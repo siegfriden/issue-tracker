@@ -1,11 +1,13 @@
-use axum::{extract::State, Json};
-use validator::Validate;
+use axum::{Json, extract::State};
 
 use crate::{
     AppState,
     auth::{middleware::Auth, password},
     errors::AppError,
-    models::user::{UpdateUserRequest, UserResponse},
+    models::{
+        PatchField,
+        user::{UserInput, UserResponse},
+    },
     repositories::user_repository,
 };
 
@@ -29,22 +31,23 @@ pub async fn get_me(
 pub async fn update_me(
     State(state): State<AppState>,
     auth: Auth,
-    Json(input): Json<UpdateUserRequest>,
+    Json(input): Json<UserInput>,
 ) -> Result<Json<UserResponse>, AppError> {
     input.validate()?;
 
-    let new_hash = match &input.new_password {
-        Some(pw) => Some(password::hash(pw)?),
-        None => None,
-    };
+    let user = user_repository::find_by_id(&state.db, auth.user_id)
+        .await?
+        .ok_or_else(|| AppError::NotFound("User not found.".to_string()))?;
 
-    let user = user_repository::update(
-        &state.db,
-        auth.user_id,
-        input.display_name.as_deref(),
-        new_hash.as_deref(),
-    )
-    .await?;
+    let mut user = user.apply(&input);
 
+    if let PatchField::Value(ref pw) = input.new_password {
+        user.password_hash = password::hash(pw)?;
+    }
+
+    user.validate()?;
+    user.updated_at = chrono::Utc::now();
+
+    user_repository::update(&state.db, &user).await?;
     Ok(Json(user.into()))
 }

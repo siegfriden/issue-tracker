@@ -1,6 +1,9 @@
-use axum::{extract::{State, Path, Query}, http::StatusCode, Json};
+use axum::{
+    Json,
+    extract::{Path, Query, State},
+    http::StatusCode,
+};
 use uuid::Uuid;
-use validator::Validate;
 
 use crate::{
     AppState,
@@ -8,10 +11,7 @@ use crate::{
     errors::AppError,
     models::{
         PaginatedResponse, PaginationParams,
-        project::{
-            AddMemberRequest, CreateProjectRequest, MemberRole, Project, ProjectMember,
-            UpdateProjectRequest,
-        },
+        project::{AddMemberRequest, MemberRole, Project, ProjectInput, ProjectMember},
     },
     repositories::{project_repository, user_repository},
 };
@@ -34,17 +34,17 @@ pub async fn list_projects(
 pub async fn create_project(
     State(state): State<AppState>,
     auth: Auth,
-    Json(input): Json<CreateProjectRequest>,
+    Json(input): Json<ProjectInput>,
 ) -> Result<(StatusCode, Json<Project>), AppError> {
-    input.validate()?;
+    let project = Project::create(input, auth.user_id).map_err(AppError::Validation)?;
 
-    if project_repository::exists_by_identifier(&state.db, &input.identifier).await? {
+    if project_repository::exists_by_identifier(&state.db, &project.identifier).await? {
         return Err(AppError::Conflict(
             "A project with that identifier already exists.".to_string(),
         ));
     }
 
-    let project = project_repository::create(&state.db, &input, auth.user_id).await?;
+    project_repository::create(&state.db, &project).await?;
     project_repository::add_member(&state.db, project.id, auth.user_id, MemberRole::Admin).await?;
     Ok((StatusCode::CREATED, Json(project)))
 }
@@ -76,7 +76,7 @@ pub async fn update_project(
     State(state): State<AppState>,
     auth: Auth,
     Path(project_id): Path<Uuid>,
-    Json(input): Json<UpdateProjectRequest>,
+    Json(input): Json<ProjectInput>,
 ) -> Result<Json<Project>, AppError> {
     input.validate()?;
 
@@ -91,8 +91,9 @@ pub async fn update_project(
         return Err(AppError::Forbidden);
     }
 
-    let updated = project_repository::update(&state.db, project_id, &input).await?;
-    Ok(Json(updated))
+    let project = project.update(input).map_err(AppError::Validation)?;
+    project_repository::update(&state.db, &project).await?;
+    Ok(Json(project))
 }
 
 /// `DELETE /api/projects/:project_id`
@@ -154,26 +155,25 @@ pub async fn add_member(
         .await?
         .ok_or_else(|| AppError::NotFound("Project not found.".to_string()))?;
 
-    let member_role =
+    let requester_role =
         project_repository::find_member_role(&state.db, project.id, auth.user_id).await?;
-
-    if !project.can_admin(auth.user_id, member_role) {
+    if !project.can_admin(auth.user_id, requester_role) {
         return Err(AppError::Forbidden);
     }
 
-    if user_repository::find_by_id(&state.db, input.user_id)
+    let user_to_add = user_repository::find_by_email(&state.db, &input.email)
         .await?
-        .is_none()
-    {
-        return Err(AppError::NotFound("User not found.".to_string()));
-    }
+        .ok_or_else(|| AppError::NotFound("User not found with that email.".to_string()))?;
 
-    if project_repository::exists_member(&state.db, project_id, input.user_id).await? {
+    if project_repository::find_member_role(&state.db, project.id, user_to_add.id)
+        .await?
+        .is_some()
+    {
         return Err(AppError::Conflict(
             "User is already a member of this project.".to_string(),
         ));
     }
 
-    project_repository::add_member(&state.db, project_id, input.user_id, input.role).await?;
+    project_repository::add_member(&state.db, project.id, user_to_add.id, input.role).await?;
     Ok(StatusCode::NO_CONTENT)
 }

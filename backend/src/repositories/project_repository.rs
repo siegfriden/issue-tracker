@@ -3,7 +3,7 @@ use uuid::Uuid;
 
 use crate::models::{
     PaginationParams,
-    project::{CreateProjectRequest, MemberRole, Project, ProjectMember, UpdateProjectRequest},
+    project::{MemberRole, Project, ProjectMember},
 };
 
 /// Return all projects visible to `user_id`:
@@ -76,49 +76,40 @@ pub async fn exists_member(
     Ok(exists.unwrap_or(false))
 }
 
-pub async fn create(
-    pool: &PgPool,
-    input: &CreateProjectRequest,
-    owner_id: Uuid,
-) -> Result<Project, sqlx::Error> {
-    sqlx::query_as::<_, Project>(
-        "INSERT INTO projects (name, identifier, description, is_public, owner_id)
-         VALUES ($1, $2, $3, $4, $5)
-         RETURNING id, name, identifier, description, is_public, owner_id, created_at, updated_at",
+pub async fn create(pool: &PgPool, project: &Project) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "INSERT INTO projects (id, name, identifier, description, is_public, owner_id, created_at, updated_at)
+         VALUES ($1, $2, $3, $4, $5, $6, $7, $8)",
     )
-    .bind(&input.name)
-    .bind(&input.identifier)
-    .bind(&input.description)
-    .bind(input.is_public)
-    .bind(owner_id)
-    .fetch_one(pool)
-    .await
+    .bind(project.id)
+    .bind(&project.name)
+    .bind(&project.identifier)
+    .bind(&project.description)
+    .bind(project.is_public)
+    .bind(project.owner_id)
+    .bind(project.created_at)
+    .bind(project.updated_at)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
-pub async fn update(
-    pool: &PgPool,
-    id: Uuid,
-    input: &UpdateProjectRequest,
-) -> Result<Project, sqlx::Error> {
-    let mut builder: QueryBuilder<sqlx::Postgres> =
-        QueryBuilder::new("UPDATE projects SET updated_at = now()");
-
-    if let Some(v) = input.name.as_deref() {
-        builder.push(", name = ").push_bind(v);
-    }
-    if let Some(v) = input.description.as_deref() {
-        builder.push(", description = ").push_bind(v);
-    }
-    if let Some(v) = input.is_public {
-        builder.push(", is_public = ").push_bind(v);
-    }
-
-    builder.push(" WHERE id = ").push_bind(id);
-    builder.push(
-        " RETURNING id, name, identifier, description, is_public, owner_id, created_at, updated_at",
-    );
-
-    builder.build_query_as::<Project>().fetch_one(pool).await
+pub async fn update(pool: &PgPool, project: &Project) -> Result<(), sqlx::Error> {
+    sqlx::query(
+        "UPDATE projects 
+         SET name = $2, identifier = $3, description = $4, is_public = $5, owner_id = $6, updated_at = $7
+         WHERE id = $1",
+    )
+    .bind(project.id)
+    .bind(&project.name)
+    .bind(&project.identifier)
+    .bind(&project.description)
+    .bind(project.is_public)
+    .bind(project.owner_id)
+    .bind(project.updated_at)
+    .execute(pool)
+    .await?;
+    Ok(())
 }
 
 /// Returns `true` if a row was deleted, `false` if the project was not found.
