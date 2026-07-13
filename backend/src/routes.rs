@@ -9,7 +9,7 @@ use axum::{
     },
     middleware::map_response,
     response::{IntoResponse, Response},
-    routing::{delete, get, post},
+    routing::{get, post},
 };
 use tower_http::{
     cors::{AllowOrigin, CorsLayer},
@@ -19,9 +19,7 @@ use tower_http::{
 use crate::{
     AppState,
     errors::ErrorResponse,
-    handlers::{
-        auth_handler, comment_handler, health_handler, issue_handler, project_handler, user_handler,
-    },
+    handlers::{auth_handler, health_handler, project_handler, user_handler},
 };
 
 /// Build the full application router with all routes and middleware.
@@ -69,8 +67,8 @@ fn api_routes() -> Router<AppState> {
         .nest("/auth", auth_routes())
         .nest("/users", user_routes())
         .nest("/projects", project_routes())
-        .nest("/issues", issue_routes())
-        .nest("/comments", comment_routes())
+    //  .nest("/issues", issue_routes())
+    //  .nest("/comments", comment_routes())
 }
 
 fn health_routes() -> Router<AppState> {
@@ -110,29 +108,29 @@ fn project_routes() -> Router<AppState> {
             "/{project_id}/members",
             get(project_handler::list_members).post(project_handler::add_member),
         )
-        .route(
-            "/{project_id}/issues",
-            get(issue_handler::list_issues).post(issue_handler::create_issue),
-        )
+    //  .route(
+    //      "/{project_id}/issues",
+    //      get(issue_handler::list_issues).post(issue_handler::create_issue),
+    //  )
 }
 
-fn issue_routes() -> Router<AppState> {
-    Router::new()
-        .route(
-            "/{issue_id}",
-            get(issue_handler::get_issue)
-                .patch(issue_handler::update_issue)
-                .delete(issue_handler::delete_issue),
-        )
-        .route(
-            "/{issue_id}/comments",
-            get(comment_handler::list_comments).post(comment_handler::create_comment),
-        )
-}
+// fn issue_routes() -> Router<AppState> {
+//     Router::new()
+//         .route(
+//             "/{issue_id}",
+//             get(issue_handler::get_issue)
+//                 .patch(issue_handler::update_issue)
+//                 .delete(issue_handler::delete_issue),
+//         )
+//         .route(
+//             "/{issue_id}/comments",
+//             get(comment_handler::list_comments).post(comment_handler::create_comment),
+//         )
+// }
 
-fn comment_routes() -> Router<AppState> {
-    Router::new().route("/{comment_id}", delete(comment_handler::delete_comment))
-}
+// fn comment_routes() -> Router<AppState> {
+//     Router::new().route("/{comment_id}", delete(comment_handler::delete_comment))
+// }
 
 /// Converts plain-text extractor rejections into the app's standard JSON error shape.
 ///
