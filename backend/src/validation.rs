@@ -31,15 +31,49 @@ pub trait Validatable<T: ?Sized> {
         F: FnOnce(&T) -> Result<(), E>;
 }
 
-/// Blanket impl: any `T` applies the rule directly to itself.
-impl<T: ?Sized> Validatable<T> for T {
-    fn apply<E, F>(&self, f: F) -> Result<(), E>
-    where
-        F: FnOnce(&T) -> Result<(), E>,
-    {
-        f(self)
-    }
+/// Implements [`Validatable<T>`] for a base/primitive type `T`, where the validation
+/// rule is applied directly to `self`.
+///
+/// # Example
+/// ```
+/// impl_validatable!(i32);
+/// // expands to:
+/// // impl Validatable<i32> for i32 {
+/// //     fn apply<E, F>(&self, f: F) -> Result<(), E>
+/// //     where
+/// //         F: FnOnce(&i32) -> Result<(), E>,
+/// //     {
+/// //         f(self)
+/// //     }
+/// // }
+/// ```
+macro_rules! impl_validatable {
+    ($t:ty) => {
+        impl Validatable<$t> for $t {
+            fn apply<E, F>(&self, f: F) -> Result<(), E>
+            where
+                F: FnOnce(&$t) -> Result<(), E>,
+            {
+                f(self)
+            }
+        }
+    };
 }
+
+// Explicitly implement Validatable for base primitives.
+// We do this instead of a blanket `impl<T> Validatable<T> for T` so that
+// wrapper types (e.g. `Option<T>`, `PatchField<T>`) can implement their own
+// recursive delegation to `T`'s `Validatable` implementation, without triggering
+// Rust's overlapping implementation error (E0119).
+impl_validatable!(i32);
+impl_validatable!(i64);
+impl_validatable!(f32);
+impl_validatable!(f64);
+impl_validatable!(bool);
+impl_validatable!(usize);
+impl_validatable!(uuid::Uuid);
+impl_validatable!(chrono::DateTime<chrono::Utc>);
+impl_validatable!(str);
 
 /// Allows using `&str` rules for `String` fields.
 impl Validatable<str> for String {
@@ -48,6 +82,24 @@ impl Validatable<str> for String {
         F: FnOnce(&str) -> Result<(), E>,
     {
         f(self.as_str())
+    }
+}
+
+/// Trait delegation: `Option<T>` delegates to `T`'s `Validatable<U>` implementation.
+/// This allows `Option<String>` to automatically use `&str` rules,
+/// `Option<i32>` to use `&i32` rules, etc.
+impl<T, U: ?Sized> Validatable<U> for Option<T>
+where
+    T: Validatable<U>,
+{
+    fn apply<E, F>(&self, f: F) -> Result<(), E>
+    where
+        F: FnOnce(&U) -> Result<(), E>,
+    {
+        match self {
+            Some(v) => v.apply(f),
+            None => Ok(()),
+        }
     }
 }
 

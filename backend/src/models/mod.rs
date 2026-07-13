@@ -60,30 +60,19 @@ where
     }
 }
 
-/// `PatchField<T>` implements [`Validatable<T>`]:
-/// - applies the validation rule when `Value`
-/// - skips validation and returns `Ok(())` when `Absent`
-impl<T> Validatable<T> for PatchField<T> {
+/// `PatchField<T>` implements [`Validatable<U>`] if `T` also implements `Validatable<U>`:
+/// - when `Value`  -> invoke `T`'s `Validatable<U>` implementation (trait delegation)
+/// - when `Absent` -> skips validation and returns `Ok(())`
+impl<T, U: ?Sized> Validatable<U> for PatchField<T>
+where
+    T: Validatable<U>,
+{
     fn apply<E, F>(&self, f: F) -> Result<(), E>
     where
-        F: FnOnce(&T) -> Result<(), E>,
+        F: FnOnce(&U) -> Result<(), E>,
     {
         match self {
-            PatchField::Value(v) => f(v),
-            PatchField::Absent => Ok(()),
-        }
-    }
-}
-
-/// `PatchField<String>` fields can use `&str` rules with the same syntax as plain `String`
-/// fields — Rust infers `T = str` from the rule signature, and this impl handles the deref.
-impl Validatable<str> for PatchField<String> {
-    fn apply<E, F>(&self, f: F) -> Result<(), E>
-    where
-        F: FnOnce(&str) -> Result<(), E>,
-    {
-        match self {
-            PatchField::Value(v) => f(v.as_str()),
+            PatchField::Value(v) => v.apply(f),
             PatchField::Absent => Ok(()),
         }
     }
@@ -159,7 +148,7 @@ mod tests {
     // --- Deserialize ---
 
     #[test]
-    fn test_patch_field_absent() {
+    fn patch_field_absent() {
         let json = r#"{}"#;
         let s: TestStruct = serde_json::from_str(json).unwrap();
         assert_eq!(s.name, PatchField::Absent);
@@ -167,7 +156,7 @@ mod tests {
     }
 
     #[test]
-    fn test_patch_field_value_present() {
+    fn patch_field_value_present() {
         let json = r#"{"name": "Alice", "age": 30}"#;
         let s: TestStruct = serde_json::from_str(json).unwrap();
         assert_eq!(s.name, PatchField::Value("Alice".to_string()));
@@ -175,7 +164,7 @@ mod tests {
     }
 
     #[test]
-    fn test_patch_field_non_nullable_rejects_null() {
+    fn patch_field_non_nullable_rejects_null() {
         let json = r#"{"name": null}"#;
         let result: Result<TestStruct, _> = serde_json::from_str(json);
         assert!(
@@ -185,7 +174,7 @@ mod tests {
     }
 
     #[test]
-    fn test_patch_field_nullable_accepts_null() {
+    fn patch_field_nullable_accepts_null() {
         let json = r#"{"age": null}"#;
         let s: TestStruct = serde_json::from_str(json).unwrap();
         assert_eq!(s.age, PatchField::Value(None));
@@ -210,7 +199,7 @@ mod tests {
     }
 
     #[test]
-    fn plain_and_patch_field_identical_syntax() {
+    fn patch_field_and_plain_identical_syntax() {
         // Demonstrates that call sites look identical regardless of field type.
         let plain: String = "hello".into();
         let patch: PatchField<String> = PatchField::Value("hello".into());
@@ -222,5 +211,81 @@ mod tests {
 
         assert!(vp.finish().is_ok());
         assert!(vf.finish().is_ok());
+    }
+
+    #[test]
+    fn patch_field_option_string_validation() {
+        let mut v = Validator::new();
+
+        let absent: PatchField<Option<String>> = PatchField::Absent;
+        let null_val: PatchField<Option<String>> = PatchField::Value(None);
+        let str_val: PatchField<Option<String>> = PatchField::Value(Some("valid".into()));
+        let str_invalid: PatchField<Option<String>> = PatchField::Value(Some("".into()));
+
+        v.field("absent", &absent).check(rules::not_empty);
+        v.field("null_val", &null_val).check(rules::not_empty);
+        v.field("str_val", &str_val).check(rules::not_empty);
+
+        assert!(v.finish().is_ok());
+
+        let mut v_err = Validator::new();
+        v_err.field("invalid", &str_invalid).check(rules::not_empty);
+        assert!(v_err.finish().is_err());
+    }
+
+    #[test]
+    fn patch_field_various_types_validation() {
+        use chrono::{DateTime, Utc};
+        use uuid::Uuid;
+        let mut v = Validator::new();
+
+        // i32 and Option<i32>
+        let pf_i32: PatchField<i32> = PatchField::Value(10);
+        let pf_opt_i32: PatchField<Option<i32>> = PatchField::Value(Some(20));
+        let pf_opt_i32_null: PatchField<Option<i32>> = PatchField::Value(None);
+        let plain_opt_i32: Option<i32> = Some(30);
+
+        fn is_positive(val: &i32) -> Result<(), &'static str> {
+            if *val > 0 {
+                Ok(())
+            } else {
+                Err("must be positive")
+            }
+        }
+
+        v.field("i32", &pf_i32).check(is_positive);
+        v.field("opt_i32", &pf_opt_i32).check(is_positive);
+        v.field("opt_i32_null", &pf_opt_i32_null).check(is_positive);
+        v.field("plain_opt_i32", &plain_opt_i32).check(is_positive);
+
+        // Date and Option<Date>
+        let pf_date: PatchField<DateTime<Utc>> = PatchField::Value(Utc::now());
+        let pf_opt_date: PatchField<Option<DateTime<Utc>>> = PatchField::Value(Some(Utc::now()));
+
+        fn always_valid_date(_d: &DateTime<Utc>) -> Result<(), &'static str> {
+            Ok(())
+        }
+
+        v.field("date", &pf_date).check(always_valid_date);
+        v.field("opt_date", &pf_opt_date).check(always_valid_date);
+
+        // Uuid and Option<Uuid>
+        let pf_uuid: PatchField<Uuid> = PatchField::Value(Uuid::new_v4());
+        let pf_opt_uuid: PatchField<Option<Uuid>> = PatchField::Value(Some(Uuid::new_v4()));
+        let plain_opt_uuid: Option<Uuid> = Some(Uuid::new_v4());
+
+        fn not_nil(id: &Uuid) -> Result<(), &'static str> {
+            if !id.is_nil() {
+                Ok(())
+            } else {
+                Err("cannot be nil")
+            }
+        }
+
+        v.field("uuid", &pf_uuid).check(not_nil);
+        v.field("opt_uuid", &pf_opt_uuid).check(not_nil);
+        v.field("plain_opt_uuid", &plain_opt_uuid).check(not_nil);
+
+        assert!(v.finish().is_ok());
     }
 }
